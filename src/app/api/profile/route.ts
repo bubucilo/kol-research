@@ -36,17 +36,8 @@ export async function POST(request: NextRequest) {
     if (platform && username) {
       try {
         await saveProfile(profileData)
-      } catch (dbError: any) {
-        const msg = dbError?.message || dbError?.toString?.() || JSON.stringify(dbError)
-        console.error('SAVE FAILED:', msg, dbError)
-        return NextResponse.json({
-          success: true,
-          data: profileData,
-          saveError: msg,
-          saveCode: dbError?.code,
-          saveDetails: dbError?.details,
-          saveHint: dbError?.hint,
-        })
+      } catch (dbError) {
+        console.warn('Failed to save to DB:', dbError)
       }
     }
 

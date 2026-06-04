@@ -147,6 +147,7 @@ export async function saveProfile(profile: ProfileData): Promise<void> {
     const { data: created, error: insertErr } = await supabase
       .from('ProfileLookup')
       .insert({
+        id: crypto.randomUUID(),
         platform: profile.platform,
         username: profile.username,
         profileUrl: profile.profileUrl,
@@ -173,6 +174,7 @@ export async function saveProfile(profile: ProfileData): Promise<void> {
   if (profile.recentContent.length > 0) {
     const { error: contentErr } = await supabase.from('ContentMetrics').insert(
       profile.recentContent.map((cm) => ({
+        id: crypto.randomUUID(),
         contentUrl: cm.url,
         views: cm.views,
         likes: cm.likes,
