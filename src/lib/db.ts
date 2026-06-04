@@ -135,6 +135,7 @@ export async function saveProfile(profile: ProfileData): Promise<void> {
         avgComments: profile.avgComments,
         avgShares: profile.avgShares,
         engagementRate: profile.engagementRate,
+        updatedAt: new Date().toISOString(),
         lastSearchedAt: new Date().toISOString(),
       })
       .eq('id', existing.id)
@@ -144,6 +145,7 @@ export async function saveProfile(profile: ProfileData): Promise<void> {
 
     await supabase.from('ContentMetrics').delete().eq('profileLookupId', profileId)
   } else {
+    const now = new Date().toISOString()
     const { data: created, error: insertErr } = await supabase
       .from('ProfileLookup')
       .insert({
@@ -161,7 +163,9 @@ export async function saveProfile(profile: ProfileData): Promise<void> {
         avgComments: profile.avgComments,
         avgShares: profile.avgShares,
         engagementRate: profile.engagementRate,
-        lastSearchedAt: new Date().toISOString(),
+        createdAt: now,
+        updatedAt: now,
+        lastSearchedAt: now,
       })
       .select('id')
       .single()
@@ -172,6 +176,7 @@ export async function saveProfile(profile: ProfileData): Promise<void> {
   }
 
   if (profile.recentContent.length > 0) {
+    const now = new Date().toISOString()
     const { error: contentErr } = await supabase.from('ContentMetrics').insert(
       profile.recentContent.map((cm) => ({
         id: crypto.randomUUID(),
@@ -181,6 +186,7 @@ export async function saveProfile(profile: ProfileData): Promise<void> {
         comments: cm.comments,
         shares: cm.shares,
         postedAt: cm.postedAt,
+        createdAt: now,
         profileLookupId: profileId,
       }))
     )
