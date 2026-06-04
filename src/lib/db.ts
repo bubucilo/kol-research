@@ -118,6 +118,8 @@ export async function saveProfile(profile: ProfileData): Promise<void> {
     .eq('platform', profile.platform)
     .maybeSingle()
 
+  let profileId: string
+
   if (existing) {
     const { error: updateErr } = await supabase
       .from('ProfileLookup')
@@ -138,13 +140,38 @@ export async function saveProfile(profile: ProfileData): Promise<void> {
       .eq('id', existing.id)
 
     if (updateErr) throw updateErr
+    profileId = existing.id
 
-    await supabase.from('ContentMetrics').delete().eq('profileLookupId', existing.id)
+    await supabase.from('ContentMetrics').delete().eq('profileLookupId', profileId)
+  } else {
+    const { data: created, error: insertErr } = await supabase
+      .from('ProfileLookup')
+      .insert({
+        platform: profile.platform,
+        username: profile.username,
+        profileUrl: profile.profileUrl,
+        profilePicture: profile.profilePicture ?? null,
+        bio: profile.bio ?? null,
+        followers: profile.followers,
+        following: profile.following ?? null,
+        postCount: profile.postCount,
+        avgViews: profile.avgViews,
+        avgLikes: profile.avgLikes,
+        avgComments: profile.avgComments,
+        avgShares: profile.avgShares,
+        engagementRate: profile.engagementRate,
+        lastSearchedAt: new Date().toISOString(),
+      })
+      .select('id')
+      .single()
+
+    if (insertErr) throw insertErr
+    if (!created) throw new Error('Insert returned no data')
+    profileId = created.id
   }
 
-  const profileId = existing?.id
-  if (profileId && profile.recentContent.length > 0) {
-    const { error: insertErr } = await supabase.from('ContentMetrics').insert(
+  if (profile.recentContent.length > 0) {
+    const { error: contentErr } = await supabase.from('ContentMetrics').insert(
       profile.recentContent.map((cm) => ({
         contentUrl: cm.url,
         views: cm.views,
@@ -155,7 +182,7 @@ export async function saveProfile(profile: ProfileData): Promise<void> {
         profileLookupId: profileId,
       }))
     )
-    if (insertErr) throw insertErr
+    if (contentErr) throw contentErr
   }
 }
 
