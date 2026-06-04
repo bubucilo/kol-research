@@ -12,7 +12,7 @@ import {
   ChevronUp,
   ChevronDown,
   ExternalLink,
-  Filter,
+  Sparkles,
 } from 'lucide-react'
 
 interface Profile {
@@ -140,271 +140,297 @@ export default function DiscoverPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
-      <div className="container mx-auto px-4 py-8">
-        <div className="max-w-7xl mx-auto">
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold text-white mb-2">Discovery</h1>
-            <p className="text-gray-400">
-              Browse all analyzed profiles. Data is cached for 3 months.
-            </p>
+    <div className="px-6 py-8">
+      <div className="max-w-[1280px] mx-auto">
+        <div className="mb-8">
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 mb-3 rounded-full text-xs font-semibold uppercase tracking-wider text-[#3B82F6] border border-[rgba(59,130,246,0.25)] bg-[rgba(59,130,246,0.06)]">
+            <Sparkles className="h-3.5 w-3.5" />
+            Discovery
           </div>
+          <h1
+            className="text-3xl md:text-4xl font-bold tracking-tight mb-2"
+            style={{
+              background: 'linear-gradient(135deg, #00CCFF, #0066FF, #00AAFF)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text',
+            }}
+          >
+            All Analyzed Profiles
+          </h1>
+          <p className="text-[#94A3B8]">
+            Browse all analyzed profiles. Data is cached for 3 months.
+          </p>
+        </div>
 
-          <div className="bg-gray-800/50 rounded-xl border border-gray-700 p-4 mb-6">
-            <div className="flex flex-col md:flex-row gap-4">
-              <div className="flex-1 relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <input
-                  type="text"
-                  value={search}
-                  onChange={(e) => {
-                    setSearch(e.target.value)
-                    setPage(1)
-                  }}
-                  placeholder="Search by username..."
-                  className="w-full pl-10 pr-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                />
-              </div>
+        <div className="tool-card rounded-xl p-4 mb-6">
+          <div className="flex flex-col md:flex-row gap-3">
+            <div className="flex-1 relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#64748B]" />
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => {
+                  setSearch(e.target.value)
+                  setPage(1)
+                }}
+                placeholder="Search by username..."
+                className="w-full pl-10 pr-4 py-2.5 rounded-lg text-white placeholder:text-[#64748B] focus:outline-none focus:ring-1 transition-all"
+                style={{
+                  background: 'rgba(255,255,255,0.03)',
+                  border: '1px solid rgba(255,255,255,0.08)',
+                }}
+              />
+            </div>
 
-              <div className="flex gap-2">
-                <select
-                  value={platform}
-                  onChange={(e) => {
-                    setPlatform(e.target.value)
-                    setPage(1)
-                  }}
-                  className="px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
-                >
-                  <option value="all">All Platforms</option>
-                  <option value="tiktok">TikTok</option>
-                  <option value="instagram">Instagram</option>
-                </select>
+            <div className="flex gap-2 flex-wrap">
+              <select
+                value={platform}
+                onChange={(e) => {
+                  setPlatform(e.target.value)
+                  setPage(1)
+                }}
+                className="px-4 py-2.5 rounded-lg text-white focus:outline-none cursor-pointer"
+                style={{
+                  background: 'rgba(255,255,255,0.03)',
+                  border: '1px solid rgba(255,255,255,0.08)',
+                }}
+              >
+                <option value="all" className="bg-[#0A0F1A]">All Platforms</option>
+                <option value="tiktok" className="bg-[#0A0F1A]">TikTok</option>
+                <option value="instagram" className="bg-[#0A0F1A]">Instagram</option>
+              </select>
 
-                <button
-                  onClick={handleExportCSV}
-                  className="px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white hover:bg-gray-600 flex items-center gap-2"
-                >
-                  <Download className="h-4 w-4" />
-                  CSV
-                </button>
+              <button
+                onClick={handleExportCSV}
+                className="btn-ghost flex items-center gap-2 text-sm py-2.5"
+                title="Export filtered results to CSV"
+              >
+                <Download className="h-4 w-4" />
+                CSV
+              </button>
 
-                <button
-                  onClick={handleCopyAll}
-                  className="px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white hover:bg-gray-600 flex items-center gap-2"
-                >
-                  {copiedId === 'all' ? (
-                    <Check className="h-4 w-4 text-green-400" />
-                  ) : (
+              <button
+                onClick={handleCopyAll}
+                className="btn-filled flex items-center gap-2 text-sm py-2.5"
+                title="Copy all visible rows for Google Sheets"
+              >
+                {copiedId === 'all' ? (
+                  <>
+                    <Check className="h-4 w-4" />
+                    Copied!
+                  </>
+                ) : (
+                  <>
                     <Copy className="h-4 w-4" />
-                  )}
-                  Copy All
-                </button>
-              </div>
-            </div>
-
-            <div className="mt-3 flex items-center gap-4 text-sm text-gray-400">
-              <span>{total} profiles</span>
-              <span>•</span>
-              <span>
-                Page {page} of {totalPages}
-              </span>
+                    Copy All
+                  </>
+                )}
+              </button>
             </div>
           </div>
 
-          <div className="bg-gray-800/50 rounded-xl border border-gray-700 overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-gray-700">
-                    <th className="text-left p-4 text-sm font-medium text-gray-400">
-                      Profile
-                    </th>
+          <div className="mt-3 flex items-center gap-3 text-xs text-[#64748B]">
+            <span className="font-semibold text-[#94A3B8]">{total}</span> profiles total
+            <span>•</span>
+            <span>Page {page} of {totalPages || 1}</span>
+          </div>
+        </div>
+
+        <div className="tool-card rounded-xl overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr style={{ background: 'rgba(255,255,255,0.02)', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+                  <th className="text-left p-4 text-xs font-semibold uppercase tracking-wider text-[#64748B]">
+                    Profile
+                  </th>
+                  {[
+                    { key: 'followers', label: 'Followers' },
+                    { key: 'postCount', label: 'Posts' },
+                    { key: 'avgViews', label: 'Avg Views' },
+                    { key: 'avgLikes', label: 'Avg Likes' },
+                    { key: 'engagementRate', label: 'Engagement' },
+                  ].map((col) => (
                     <th
-                      className="text-right p-4 text-sm font-medium text-gray-400 cursor-pointer hover:text-white"
-                      onClick={() => handleSort('followers')}
+                      key={col.key}
+                      className="text-right p-4 text-xs font-semibold uppercase tracking-wider text-[#64748B] cursor-pointer hover:text-white transition-colors"
+                      onClick={() => handleSort(col.key)}
                     >
-                      Followers
-                      <SortIcon column="followers" />
+                      {col.label}
+                      <SortIcon column={col.key} />
                     </th>
-                    <th
-                      className="text-right p-4 text-sm font-medium text-gray-400 cursor-pointer hover:text-white"
-                      onClick={() => handleSort('postCount')}
-                    >
-                      Posts
-                      <SortIcon column="postCount" />
-                    </th>
-                    <th
-                      className="text-right p-4 text-sm font-medium text-gray-400 cursor-pointer hover:text-white"
-                      onClick={() => handleSort('avgViews')}
-                    >
-                      Avg Views
-                      <SortIcon column="avgViews" />
-                    </th>
-                    <th
-                      className="text-right p-4 text-sm font-medium text-gray-400 cursor-pointer hover:text-white"
-                      onClick={() => handleSort('avgLikes')}
-                    >
-                      Avg Likes
-                      <SortIcon column="avgLikes" />
-                    </th>
-                    <th
-                      className="text-right p-4 text-sm font-medium text-gray-400 cursor-pointer hover:text-white"
-                      onClick={() => handleSort('engagementRate')}
-                    >
-                      Engagement
-                      <SortIcon column="engagementRate" />
-                    </th>
-                    <th className="text-right p-4 text-sm font-medium text-gray-400">
-                      Actions
-                    </th>
+                  ))}
+                  <th className="text-right p-4 text-xs font-semibold uppercase tracking-wider text-[#64748B]">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {loading ? (
+                  <tr>
+                    <td colSpan={7} className="p-12 text-center text-[#64748B]">
+                      Loading…
+                    </td>
                   </tr>
-                </thead>
-                <tbody>
-                  {loading ? (
-                    <tr>
-                      <td colSpan={7} className="p-8 text-center text-gray-400">
-                        Loading...
-                      </td>
-                    </tr>
-                  ) : profiles.length === 0 ? (
-                    <tr>
-                      <td colSpan={7} className="p-8 text-center text-gray-400">
-                        No profiles found. Start by analyzing a profile.
-                      </td>
-                    </tr>
-                  ) : (
-                    profiles.map((profile) => (
-                      <tr
-                        key={profile.id}
-                        className="border-b border-gray-700/50 hover:bg-gray-700/30"
+                ) : profiles.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="p-12 text-center">
+                      <div className="text-[#94A3B8] mb-2">No profiles yet</div>
+                      <a
+                        href="/"
+                        className="text-[#00AAFF] hover:text-[#60A5FA] text-sm font-medium"
                       >
-                        <td className="p-4">
-                          <div className="flex items-center gap-3">
-                            {profile.profilePicture ? (
-                              <img
-                                src={profile.profilePicture}
-                                alt={profile.username}
-                                className="w-8 h-8 rounded-full"
-                              />
-                            ) : (
-                              <div className="w-8 h-8 rounded-full bg-gray-600 flex items-center justify-center">
-                                {profile.platform === 'tiktok' ? (
-                                  <Music className="h-4 w-4 text-cyan-400" />
-                                ) : (
-                                  <Camera className="h-4 w-4 text-pink-400" />
-                                )}
-                              </div>
-                            )}
-                            <div>
-                              <div className="flex items-center gap-2">
-                                <span className="text-white font-medium">
-                                  @{profile.username}
-                                </span>
-                                <span
-                                  className={`text-xs px-2 py-0.5 rounded ${
-                                    profile.platform === 'tiktok'
-                                      ? 'bg-cyan-500/20 text-cyan-400'
-                                      : 'bg-pink-500/20 text-pink-400'
-                                  }`}
-                                >
-                                  {profile.platform}
-                                </span>
-                              </div>
-                              {profile.bio && (
-                                <p className="text-xs text-gray-500 truncate max-w-xs">
-                                  {profile.bio}
-                                </p>
+                        Analyze your first profile →
+                      </a>
+                    </td>
+                  </tr>
+                ) : (
+                  profiles.map((profile) => (
+                    <tr
+                      key={profile.id}
+                      className="transition-colors hover:bg-[rgba(59,130,246,0.04)]"
+                      style={{ borderTop: '1px solid rgba(255,255,255,0.04)' }}
+                    >
+                      <td className="p-4">
+                        <div className="flex items-center gap-3">
+                          {profile.profilePicture ? (
+                            <img
+                              src={profile.profilePicture}
+                              alt={profile.username}
+                              className="w-9 h-9 rounded-full flex-shrink-0"
+                              style={{ border: '1px solid rgba(255,255,255,0.08)' }}
+                            />
+                          ) : (
+                            <div
+                              className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
+                              style={{ background: 'rgba(255,255,255,0.04)' }}
+                            >
+                              {profile.platform === 'tiktok' ? (
+                                <Music className="h-4 w-4 text-[#00AAFF]" />
+                              ) : (
+                                <Camera className="h-4 w-4 text-[#F472B6]" />
                               )}
                             </div>
+                          )}
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="text-white font-medium">
+                                @{profile.username}
+                              </span>
+                              <span
+                                className="text-[10px] px-1.5 py-0.5 rounded font-semibold uppercase tracking-wide"
+                                style={
+                                  profile.platform === 'tiktok'
+                                    ? { background: 'rgba(0,170,255,0.12)', color: '#00AAFF' }
+                                    : { background: 'rgba(236,72,153,0.12)', color: '#F472B6' }
+                                }
+                              >
+                                {profile.platform}
+                              </span>
+                            </div>
+                            {profile.bio && (
+                              <p className="text-xs text-[#64748B] truncate max-w-xs mt-0.5">
+                                {profile.bio}
+                              </p>
+                            )}
                           </div>
-                        </td>
-                        <td className="p-4 text-right text-white text-sm">
-                          {profile.followers
-                            ? formatNumber(profile.followers)
-                            : '-'}
-                        </td>
-                        <td className="p-4 text-right text-white text-sm">
-                          {profile.postCount
-                            ? formatNumber(profile.postCount)
-                            : '-'}
-                        </td>
-                        <td className="p-4 text-right text-white text-sm">
-                          {profile.avgViews
-                            ? formatNumber(Math.round(profile.avgViews))
-                            : '-'}
-                        </td>
-                        <td className="p-4 text-right text-white text-sm">
-                          {profile.avgLikes
-                            ? formatNumber(Math.round(profile.avgLikes))
-                            : '-'}
-                        </td>
-                        <td className="p-4 text-right text-sm">
-                          <span
-                            className={`${
+                        </div>
+                      </td>
+                      <td className="p-4 text-right text-white text-sm font-medium">
+                        {profile.followers
+                          ? formatNumber(profile.followers)
+                          : '-'}
+                      </td>
+                      <td className="p-4 text-right text-white text-sm font-medium">
+                        {profile.postCount
+                          ? formatNumber(profile.postCount)
+                          : '-'}
+                      </td>
+                      <td className="p-4 text-right text-white text-sm font-medium">
+                        {profile.avgViews
+                          ? formatNumber(Math.round(profile.avgViews))
+                          : '-'}
+                      </td>
+                      <td className="p-4 text-right text-white text-sm font-medium">
+                        {profile.avgLikes
+                          ? formatNumber(Math.round(profile.avgLikes))
+                          : '-'}
+                      </td>
+                      <td className="p-4 text-right text-sm font-semibold">
+                        <span
+                          style={{
+                            color:
                               (profile.engagementRate || 0) > 3
-                                ? 'text-green-400'
+                                ? '#34D399'
                                 : (profile.engagementRate || 0) > 1
-                                ? 'text-yellow-400'
-                                : 'text-red-400'
-                            }`}
+                                ? '#FBBF24'
+                                : '#F87171',
+                          }}
+                        >
+                          {profile.engagementRate
+                            ? formatEngagementRate(profile.engagementRate)
+                            : '-'}
+                        </span>
+                      </td>
+                      <td className="p-4 text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <button
+                            onClick={() => handleCopy(profile)}
+                            className="p-2 rounded-lg transition-colors"
+                            style={{ color: copiedId === profile.id ? '#34D399' : '#94A3B8' }}
+                            title="Copy to clipboard (for Google Sheets)"
                           >
-                            {profile.engagementRate
-                              ? formatEngagementRate(profile.engagementRate)
-                              : '-'}
-                          </span>
-                        </td>
-                        <td className="p-4 text-right">
-                          <div className="flex items-center justify-end gap-2">
-                            <button
-                              onClick={() => handleCopy(profile)}
-                              className="p-1.5 rounded-lg hover:bg-gray-600 text-gray-400 hover:text-white"
-                              title="Copy to clipboard (for Google Sheets)"
-                            >
-                              {copiedId === profile.id ? (
-                                <Check className="h-4 w-4 text-green-400" />
-                              ) : (
-                                <Copy className="h-4 w-4" />
-                              )}
-                            </button>
-                            <a
-                              href={profile.profileUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="p-1.5 rounded-lg hover:bg-gray-600 text-gray-400 hover:text-white"
-                            >
-                              <ExternalLink className="h-4 w-4" />
-                            </a>
-                          </div>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-            {totalPages > 1 && (
-              <div className="flex items-center justify-between p-4 border-t border-gray-700">
-                <button
-                  onClick={() => setPage(Math.max(1, page - 1))}
-                  disabled={page === 1}
-                  className="px-4 py-2 bg-gray-700 rounded-lg text-white disabled:opacity-50 hover:bg-gray-600"
-                >
-                  Previous
-                </button>
-                <span className="text-gray-400 text-sm">
-                  Page {page} of {totalPages}
-                </span>
-                <button
-                  onClick={() => setPage(Math.min(totalPages, page + 1))}
-                  disabled={page === totalPages}
-                  className="px-4 py-2 bg-gray-700 rounded-lg text-white disabled:opacity-50 hover:bg-gray-600"
-                >
-                  Next
-                </button>
-              </div>
-            )}
+                            {copiedId === profile.id ? (
+                              <Check className="h-4 w-4" />
+                            ) : (
+                              <Copy className="h-4 w-4" />
+                            )}
+                          </button>
+                          <a
+                            href={profile.profileUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="p-2 rounded-lg transition-colors text-[#94A3B8] hover:text-[#00AAFF]"
+                            title="Open profile"
+                          >
+                            <ExternalLink className="h-4 w-4" />
+                          </a>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
           </div>
+
+          {totalPages > 1 && (
+            <div
+              className="flex items-center justify-between p-4"
+              style={{ borderTop: '1px solid rgba(255,255,255,0.07)' }}
+            >
+              <button
+                onClick={() => setPage(Math.max(1, page - 1))}
+                disabled={page === 1}
+                className="px-4 py-2 rounded-lg text-white text-sm disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                style={{ background: 'rgba(255,255,255,0.04)' }}
+              >
+                Previous
+              </button>
+              <span className="text-[#94A3B8] text-sm">
+                Page {page} of {totalPages}
+              </span>
+              <button
+                onClick={() => setPage(Math.min(totalPages, page + 1))}
+                disabled={page === totalPages}
+                className="px-4 py-2 rounded-lg text-white text-sm disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                style={{ background: 'rgba(255,255,255,0.04)' }}
+              >
+                Next
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>

@@ -1,26 +1,128 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --bg: #0A0F1A;
+  --bg-card: rgba(255, 255, 255, 0.025);
+  --bg-card-hover: rgba(255, 255, 255, 0.04);
+  --border: rgba(255, 255, 255, 0.07);
+  --border-hover: rgba(59, 130, 246, 0.35);
+  --text: #E2E8F0;
+  --text-muted: #64748B;
+  --text-dim: #94A3B8;
+  --blue: #3B82F6;
+  --blue-bright: #60A5FA;
+  --cyan: #00AAFF;
+  --green: #10B981;
+  --yellow: #F59E0B;
+  --red: #EF4444;
+  --radius: 14px;
+  --radius-sm: 8px;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-bg: var(--bg);
+  --color-bg-card: var(--bg-card);
+  --color-border: var(--border);
+  --color-text: var(--text);
+  --color-text-muted: var(--text-muted);
+  --color-text-dim: var(--text-dim);
+  --color-blue: var(--blue);
+  --color-cyan: var(--cyan);
+  --color-green: var(--green);
+  --color-yellow: var(--yellow);
+  --color-red: var(--red);
+  --font-sans: var(--font-inter), 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  scroll-behavior: smooth;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-inter), 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  line-height: 1.6;
+  min-height: 100vh;
+}
+
+/* Animated background orbs (matches main site) */
+.bg-orbs {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.bg-orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(120px);
+  opacity: 0.15;
+  animation: orbFloat 20s ease-in-out infinite;
+}
+
+.bg-orb-1 { width: 600px; height: 600px; background: #3B82F6; top: -10%; right: -10%; animation-duration: 25s; }
+.bg-orb-2 { width: 500px; height: 500px; background: #6366F1; bottom: 10%; left: -10%; animation-duration: 30s; animation-delay: -5s; }
+.bg-orb-3 { width: 400px; height: 400px; background: #1D4ED8; top: 40%; right: 20%; animation-duration: 22s; animation-delay: -10s; opacity: 0.1; }
+
+@keyframes orbFloat {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  25% { transform: translate(30px, -40px) scale(1.05); }
+  50% { transform: translate(-20px, 20px) scale(0.95); }
+  75% { transform: translate(40px, 30px) scale(1.02); }
+}
+
+/* Buttons */
+.btn-filled {
+  background: linear-gradient(135deg, #0066FF, #00AAFF);
+  color: #fff;
+  font-weight: 600;
+  border-radius: 10px;
+  padding: 12px 24px;
+  transition: all 0.3s ease;
+  box-shadow: 0 6px 30px rgba(0, 102, 255, 0.4);
+}
+.btn-filled:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 40px rgba(0, 102, 255, 0.55);
+}
+
+.btn-ghost {
+  background: rgba(0, 170, 255, 0.06);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(0, 170, 255, 0.3);
+  border-radius: 10px;
+  color: #00AAFF;
+  font-weight: 600;
+  padding: 12px 24px;
+  transition: all 0.3s ease;
+}
+.btn-ghost:hover {
+  background: rgba(0, 170, 255, 0.15);
+  border-color: #00AAFF;
+}
+
+/* Section labels */
+.section-label {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #3B82F6;
+}
+
+/* Card style matching tool pages */
+.tool-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  transition: border-color 0.3s ease, background 0.3s ease;
+}
+.tool-card:hover {
+  border-color: var(--border-hover);
+  background: var(--bg-card-hover);
 }

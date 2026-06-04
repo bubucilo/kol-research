@@ -2,44 +2,79 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Calculator, Compass } from 'lucide-react'
+import Image from 'next/image'
 
 export function Header() {
   const pathname = usePathname()
 
   return (
-    <header className="bg-gray-900/80 backdrop-blur-sm border-b border-gray-800 sticky top-0 z-50">
-      <div className="container mx-auto px-4 py-4 flex items-center justify-between">
+    <header
+      className="sticky top-0 z-50 transition-all"
+      style={{
+        background: 'rgba(10, 15, 26, 0.85)',
+        backdropFilter: 'blur(20px)',
+        WebkitBackdropFilter: 'blur(20px)',
+        borderBottom: '1px solid rgba(255,255,255,0.06)',
+      }}
+    >
+      <div className="max-w-[1200px] mx-auto px-6 py-3.5 flex items-center justify-between">
         <Link
           href="/"
-          className="flex items-center gap-2 text-white hover:text-purple-400 transition-colors"
+          className="flex items-center gap-2.5 group"
         >
-          <Calculator className="h-6 w-6 text-purple-400" />
-          <span className="text-xl font-bold">Profile Calculator</span>
+          <div className="relative w-8 h-8 rounded-lg overflow-hidden flex-shrink-0">
+            <Image
+              src="/favicon.png"
+              alt="Proton Media"
+              width={32}
+              height={32}
+              className="object-cover"
+            />
+          </div>
+          <div className="flex flex-col leading-tight">
+            <span className="text-white font-bold text-sm tracking-tight">
+              Proton Media
+            </span>
+            <span className="text-[10px] font-medium uppercase tracking-wider text-[#3B82F6]">
+              KOL Research
+            </span>
+          </div>
         </Link>
 
-        <nav className="flex items-center gap-6">
+        <nav className="flex items-center gap-1">
           <Link
             href="/"
-            className={`text-sm transition-colors ${
-              pathname === '/'
-                ? 'text-white font-medium'
-                : 'text-gray-400 hover:text-white'
-            }`}
+            className="px-3.5 py-2 rounded-lg text-sm font-medium transition-colors"
+            style={{
+              color: pathname === '/' ? '#ffffff' : 'rgba(255,255,255,0.7)',
+              background: pathname === '/' ? 'rgba(59,130,246,0.1)' : 'transparent',
+            }}
           >
             Calculator
           </Link>
           <Link
             href="/discover"
-            className={`flex items-center gap-1.5 text-sm transition-colors ${
-              pathname === '/discover'
-                ? 'text-white font-medium'
-                : 'text-gray-400 hover:text-white'
-            }`}
+            className="px-3.5 py-2 rounded-lg text-sm font-medium transition-colors"
+            style={{
+              color: pathname === '/discover' ? '#ffffff' : 'rgba(255,255,255,0.7)',
+              background: pathname === '/discover' ? 'rgba(59,130,246,0.1)' : 'transparent',
+            }}
           >
-            <Compass className="h-4 w-4" />
             Discovery
           </Link>
+          <a
+            href="https://protonmedia.co.id"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="ml-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all"
+            style={{
+              background: 'linear-gradient(135deg, #0066FF, #00AAFF)',
+              color: '#fff',
+              boxShadow: '0 4px 16px rgba(0, 102, 255, 0.3)',
+            }}
+          >
+            protonmedia.co.id →
+          </a>
         </nav>
       </div>
     </header>
