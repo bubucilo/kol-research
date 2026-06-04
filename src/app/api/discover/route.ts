@@ -29,7 +29,16 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('Discovery API error:', error)
     return NextResponse.json(
-      { success: false, error: 'Failed to fetch profiles' },
+      {
+        success: false,
+        error: 'Failed to fetch profiles',
+        debug: {
+          message: error instanceof Error ? error.message : String(error),
+          name: error instanceof Error ? error.name : typeof error,
+          code: (error as any)?.code,
+          meta: (error as any)?.meta,
+        },
+      },
       { status: 500 }
     )
   }
