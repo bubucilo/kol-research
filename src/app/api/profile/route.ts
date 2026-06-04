@@ -36,12 +36,16 @@ export async function POST(request: NextRequest) {
     if (platform && username) {
       try {
         await saveProfile(profileData)
-      } catch (dbError) {
-        console.error('SAVE FAILED:', dbError instanceof Error ? dbError.message : dbError)
+      } catch (dbError: any) {
+        const msg = dbError?.message || dbError?.toString?.() || JSON.stringify(dbError)
+        console.error('SAVE FAILED:', msg, dbError)
         return NextResponse.json({
           success: true,
           data: profileData,
-          saveError: dbError instanceof Error ? dbError.message : String(dbError),
+          saveError: msg,
+          saveCode: dbError?.code,
+          saveDetails: dbError?.details,
+          saveHint: dbError?.hint,
         })
       }
     }
