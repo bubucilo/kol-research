@@ -1,0 +1,5 @@
+RewriteEngine On
+RewriteBase /kol-research/
+
+# Proxy all requests to Next.js running on port 3000
+RewriteRule ^(.*)$ http://localhost:3000/kol-research/$1 [P,L]
