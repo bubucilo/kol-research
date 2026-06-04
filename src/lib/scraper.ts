@@ -1,26 +1,6 @@
 import { ProfileData, ProfileError } from './types'
 
-export interface ScrapeAttempt {
-  provider: 'scrapfly' | 'apify'
-  ok: boolean
-  error?: string
-}
-
-export interface ScrapeResult extends ProfileData {
-  attempts: ScrapeAttempt[]
-}
-
-export async function scrapeProfile(
-  url: string,
-  options: { returnAttempts?: boolean } = {}
-): Promise<ProfileData> {
-  return scrapeProfileWithFallback(url, options)
-}
-
-export async function scrapeProfileWithFallback(
-  url: string,
-  options: { returnAttempts?: boolean } = {}
-): Promise<ProfileData> {
+export async function scrapeProfile(url: string): Promise<ProfileData> {
   const { detectPlatform, extractUsername, isInstagramReelsUrl } = await import('./utils')
 
   const platform = detectPlatform(url)
@@ -37,52 +17,52 @@ export async function scrapeProfileWithFallback(
   }
 
   const isReels = platform === 'instagram' && isInstagramReelsUrl(url)
-  const attempts: ScrapeAttempt[] = []
+  const tried: string[] = []
+  const errors: string[] = []
 
   if (process.env.SCRAPFLY_API_KEY) {
+    tried.push('scrapfly')
     try {
       if (platform === 'tiktok') {
         const { scrapeTikTokViaScrapfly } = await import('./scrapers/tiktok-scrapfly')
-        const data = await scrapeTikTokViaScrapfly(username)
-        attempts.push({ provider: 'scrapfly', ok: true })
-        return options.returnAttempts ? { ...data, attempts } : data
+        return await scrapeTikTokViaScrapfly(username)
       } else {
         const { scrapeInstagramViaScrapfly } = await import('./scrapers/instagram-scrapfly')
-        const data = await scrapeInstagramViaScrapfly(username, isReels)
-        attempts.push({ provider: 'scrapfly', ok: true })
-        return options.returnAttempts ? { ...data, attempts } : data
+        return await scrapeInstagramViaScrapfly(username, isReels)
       }
     } catch (err: any) {
       const msg = err instanceof Error ? err.message : String(err)
-      attempts.push({ provider: 'scrapfly', ok: false, error: msg })
+      errors.push(`scrapfly: ${msg}`)
       console.warn(`[scraper] Scrapfly failed for ${platform}/${username}: ${msg}`)
     }
   }
 
   if (process.env.APIFY_API_KEY) {
+    tried.push('apify')
     try {
       if (platform === 'tiktok') {
         const { scrapeTikTokViaApify } = await import('./scrapers/tiktok-apify')
-        const data = await scrapeTikTokViaApify(username)
-        attempts.push({ provider: 'apify', ok: true })
-        return options.returnAttempts ? { ...data, attempts } : data
+        return await scrapeTikTokViaApify(username)
       } else {
         const { scrapeInstagramViaApify } = await import('./scrapers/instagram-apify')
-        const data = await scrapeInstagramViaApify(username, isReels)
-        attempts.push({ provider: 'apify', ok: true })
-        return options.returnAttempts ? { ...data, attempts } : data
+        return await scrapeInstagramViaApify(username, isReels)
       }
     } catch (err: any) {
       const msg = err instanceof Error ? err.message : String(err)
-      attempts.push({ provider: 'apify', ok: false, error: msg })
+      errors.push(`apify: ${msg}`)
       console.error(`[scraper] Apify fallback failed for ${platform}/${username}: ${msg}`)
     }
   }
 
-  const tried = attempts.map((a) => a.provider).join(' + ') || 'no providers'
-  const lastError = attempts[attempts.length - 1]?.error || 'No scraper configured'
+  if (tried.length === 0) {
+    throw new ProfileError(
+      'No scraper configured. Set SCRAPFLY_API_KEY or APIFY_API_KEY.',
+      'SCRAPING_FAILED'
+    )
+  }
+
   throw new ProfileError(
-    `All scrapers failed (${tried}). Last error: ${lastError}`,
+    `All scrapers failed (${tried.join(', ')}). ${errors[errors.length - 1] || ''}`,
     'SCRAPING_FAILED'
   )
 }
