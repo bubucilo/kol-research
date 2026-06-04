@@ -6,25 +6,27 @@ const POSTS_TO_SCRAPE = 15
 const POSTS_TO_SKIP = 3
 
 type ApifyTikTokItem = {
+  id?: string
   authorMeta?: {
+    id?: string
     name?: string
+    profileUrl?: string
     nickName?: string
     signature?: string
+    bioLink?: string
     avatar?: string
+    verified?: boolean
     fans?: number
     following?: number
     video?: number
   }
   webVideoUrl?: string
-  videoMeta?: {
-    coverUrl?: string
-  }
-  stats?: {
-    playCount?: number
-    diggCount?: number
-    commentCount?: number
-    shareCount?: number
-  }
+  playCount?: number
+  diggCount?: number
+  commentCount?: number
+  shareCount?: number
+  collectCount?: number
+  repostCount?: number
 }
 
 export async function scrapeTikTokViaApify(
@@ -62,15 +64,14 @@ export async function scrapeTikTokViaApify(
   const bio = firstAuthor?.signature ?? null
 
   const allVideos = items
-    .filter((it) => it.stats && typeof it.stats.playCount === 'number')
+    .filter((it) => typeof it.playCount === 'number' && it.webVideoUrl)
     .map((it) => ({
       url: it.webVideoUrl ?? '',
-      playCount: it.stats!.playCount ?? 0,
-      diggCount: it.stats!.diggCount ?? 0,
-      commentCount: it.stats!.commentCount ?? 0,
-      shareCount: it.stats!.shareCount ?? 0,
+      playCount: it.playCount ?? 0,
+      diggCount: it.diggCount ?? 0,
+      commentCount: it.commentCount ?? 0,
+      shareCount: it.shareCount ?? 0,
     }))
-    .filter((v) => v.url)
 
   const recentVideos = allVideos.slice(POSTS_TO_SKIP, POSTS_TO_SCRAPE)
 
