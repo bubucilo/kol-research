@@ -66,7 +66,7 @@ export async function GET() {
   }
 
   // Test 5: Pooler hosts (have IPv4)
-  for (const host of ['aws-0-us-east-1.pooler.supabase.com', 'aws-0-ap-southeast-1.pooler.supabase.com']) {
+  for (const host of ['aws-0-us-east-1.pooler.supabase.com', 'aws-0-us-west-1.pooler.supabase.com', 'aws-0-us-east-2.pooler.supabase.com', 'aws-0-ap-southeast-1.pooler.supabase.com', 'aws-0-ap-southeast-2.pooler.supabase.com', 'aws-0-ap-northeast-1.pooler.supabase.com', 'aws-0-eu-west-1.pooler.supabase.com', 'aws-0-eu-west-2.pooler.supabase.com', 'aws-0-eu-central-1.pooler.supabase.com', 'aws-0-sa-east-1.pooler.supabase.com', 'aws-0-ca-central-1.pooler.supabase.com']) {
     try {
       const dns = await import('dns').then(m => m.promises)
       const v4 = await dns.resolve4(host).catch((e: any) => `ERR: ${e.message}`)
