@@ -64,6 +64,17 @@ export async function GET() {
       results[`tcp_${port}`] = `FAIL: ${e.message}`
     }
   }
+
+  // Test 5: Pooler hosts (have IPv4)
+  for (const host of ['aws-0-us-east-1.pooler.supabase.com', 'aws-0-ap-southeast-1.pooler.supabase.com']) {
+    try {
+      const dns = await import('dns').then(m => m.promises)
+      const v4 = await dns.resolve4(host).catch((e: any) => `ERR: ${e.message}`)
+      results[`pooler_${host}_v4`] = v4
+    } catch (e: any) {
+      results[`pooler_${host}_v4`] = `FAIL: ${e.message}`
+    }
+  }
   
   return NextResponse.json(results)
 }
