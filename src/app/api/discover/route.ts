@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getAllProfiles } from '@/lib/db'
+import { getMergedKOLs } from '@/lib/db'
 
 export const runtime = 'nodejs'
 
@@ -17,23 +17,30 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams
     const platform = searchParams.get('platform') || undefined
     const search = searchParams.get('search') || undefined
-    const sortBy = searchParams.get('sortBy') || 'lastSearchedAt'
+    const sortBy = searchParams.get('sortBy') || 'updatedAt'
     const sortOrder = (searchParams.get('sortOrder') as 'asc' | 'desc') || 'desc'
     const page = parseInt(searchParams.get('page') || '1')
     const pageSize = parseInt(searchParams.get('pageSize') || '50')
+    const category = searchParams.get('category') || undefined
+    const domisili = searchParams.get('domisili') || undefined
+    const hasContact = searchParams.get('hasContact') === 'true'
+    const hasRate = searchParams.get('hasRate') === 'true'
+    const scrapedOnly = searchParams.get('scrapedOnly') === 'true'
+    const unscrapedOnly = searchParams.get('unscrapedOnly') === 'true'
 
-    const result = await getAllProfiles({
+    const result = await getMergedKOLs({
       platform,
       search,
       sortBy,
       sortOrder,
       page,
       pageSize,
-      followerRanges: parseRangeParam(searchParams.get('followerRanges')),
-      postRanges: parseRangeParam(searchParams.get('postRanges')),
-      viewRanges: parseRangeParam(searchParams.get('viewRanges')),
-      likeRanges: parseRangeParam(searchParams.get('likeRanges')),
-      erRanges: parseRangeParam(searchParams.get('erRanges')),
+      category,
+      domisili,
+      hasContact,
+      hasRate,
+      scrapedOnly,
+      unscrapedOnly,
     })
 
     return NextResponse.json({

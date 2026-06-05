@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getAllProfiles } from '@/lib/db'
+import { getMergedKOLs } from '@/lib/db'
 
 export const runtime = 'nodejs'
 
@@ -17,57 +17,78 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams
     const platform = searchParams.get('platform') || undefined
     const search = searchParams.get('search') || undefined
-    const sortBy = searchParams.get('sortBy') || 'lastSearchedAt'
+    const sortBy = searchParams.get('sortBy') || 'updatedAt'
     const sortOrder = (searchParams.get('sortOrder') as 'asc' | 'desc') || 'desc'
+    const category = searchParams.get('category') || undefined
+    const domisili = searchParams.get('domisili') || undefined
+    const hasContact = searchParams.get('hasContact') === 'true'
+    const hasRate = searchParams.get('hasRate') === 'true'
+    const scrapedOnly = searchParams.get('scrapedOnly') === 'true'
+    const unscrapedOnly = searchParams.get('unscrapedOnly') === 'true'
 
-    const result = await getAllProfiles({
+    const result = await getMergedKOLs({
       platform,
       search,
       sortBy,
       sortOrder,
       page: 1,
       pageSize: 10000,
-      followerRanges: parseRangeParam(searchParams.get('followerRanges')),
-      postRanges: parseRangeParam(searchParams.get('postRanges')),
-      viewRanges: parseRangeParam(searchParams.get('viewRanges')),
-      likeRanges: parseRangeParam(searchParams.get('likeRanges')),
-      erRanges: parseRangeParam(searchParams.get('erRanges')),
+      category,
+      domisili,
+      hasContact,
+      hasRate,
+      scrapedOnly,
+      unscrapedOnly,
     })
 
     const headers = [
       'Platform',
       'Username',
+      'Name',
       'Followers',
-      'Following',
-      'Posts',
+      'Tier',
+      'ER %',
       'Avg Views',
       'Avg Likes',
-      'Avg Comments',
       'Engagement Rate %',
+      'Rate (IDR)',
+      'Contact',
+      'Categories',
+      'Domisili',
+      'Scope',
+      'Remarks',
       'Profile URL',
-      'Last Searched',
+      'Last Scraped',
+      'Data Source',
     ]
 
     const rows = result.profiles.map((p: any) => [
       p.platform,
       p.username,
+      p.name || '',
       p.followers || 0,
-      p.following || 0,
-      p.postCount || 0,
+      p.tier || '',
+      (p.engagementRate || 0).toFixed(2),
       Math.round(p.avgViews || 0),
       Math.round(p.avgLikes || 0),
-      Math.round(p.avgComments || 0),
       (p.engagementRate || 0).toFixed(2),
+      p.rateIdr || '',
+      p.contact || '',
+      p.categories || '',
+      p.domisili || '',
+      p.scopeOfWork || '',
+      p.remarks || '',
       p.profileUrl,
-      new Date(p.lastSearchedAt).toISOString().split('T')[0],
+      p.lastSearchedAt ? new Date(p.lastSearchedAt).toISOString().split('T')[0] : '',
+      p.hasScrapedData ? 'live' : 'csv',
     ])
 
-    const csv = [headers.join(','), ...rows.map((r: string[]) => r.join(','))].join('\n')
+    const csv = [headers.join(','), ...rows.map((r: any[]) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(','))].join('\n')
 
     return new NextResponse(csv, {
       headers: {
         'Content-Type': 'text/csv',
-        'Content-Disposition': `attachment; filename="profile-analytics-${new Date().toISOString().split('T')[0]}.csv"`,
+        'Content-Disposition': `attachment; filename="kol-database-${new Date().toISOString().split('T')[0]}.csv"`,
       },
     })
   } catch (error) {

@@ -5,7 +5,7 @@ const CACHE_TTL_DAYS = 90
 
 let client: SupabaseClient | null = null
 
-function getClient(): SupabaseClient {
+export function getClient(): SupabaseClient {
   if (!client) {
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL
     const key = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -372,5 +372,151 @@ export async function getProfileById(id: string) {
   return {
     ...(profile as ProfileRow),
     contentMetrics: (content ?? []) as ContentRow[],
+  }
+}
+
+type KOLContactRow = {
+  id: string
+  rowNo: number | null
+  name: string | null
+  profileUrl: string
+  platform: string
+  username: string
+  categories: string | null
+  followers: number | null
+  tier: string | null
+  erPercent: number | null
+  avgViews: number | null
+  gmv: number | null
+  scopeQty: number | null
+  scopeOfWork: string | null
+  rateIdr: number | null
+  remarks: string | null
+  domisili: string | null
+  contact: string | null
+  status: string | null
+  importedAt: string
+  updatedAt: string
+}
+
+export async function getMergedKOLs(options?: {
+  platform?: string
+  search?: string
+  sortBy?: string
+  sortOrder?: 'asc' | 'desc'
+  page?: number
+  pageSize?: number
+  category?: string
+  domisili?: string
+  hasContact?: boolean
+  hasRate?: boolean
+  scrapedOnly?: boolean
+  unscrapedOnly?: boolean
+}) {
+  const {
+    platform,
+    search,
+    sortBy = 'updatedAt',
+    sortOrder = 'desc',
+    page = 1,
+    pageSize = 50,
+    category,
+    domisili,
+    hasContact,
+    hasRate,
+    scrapedOnly,
+    unscrapedOnly,
+  } = options || {}
+
+  const supabase = getClient()
+
+  let query = supabase
+    .from('KOLContacts')
+    .select(
+      `
+      id, "rowNo", name, "profileUrl", platform, username, categories, followers, tier,
+      "erPercent", "avgViews", gmv, "scopeQty", "scopeOfWork", "rateIdr", remarks,
+      domisili, contact, status, "importedAt", "updatedAt",
+      ProfileLookup:ProfileLookup!ProfileLookup_platform_username_fkey(
+        "profilePicture", bio, following, "postCount",
+        "avgViews", "avgLikes", "avgComments", "avgShares", "engagementRate",
+        "lastSearchedAt", followers
+      )
+    `,
+      { count: 'exact' }
+    )
+
+  if (platform && platform !== 'all') {
+    query = query.eq('platform', platform)
+  }
+  if (category) {
+    query = query.ilike('categories', `%${category}%`)
+  }
+  if (domisili) {
+    query = query.ilike('domisili', `%${domisili}%`)
+  }
+  if (hasContact) {
+    query = query.not('contact', 'is', null).neq('contact', '')
+  }
+  if (hasRate) {
+    query = query.not('rateIdr', 'is', null).gt('rateIdr', 0)
+  }
+  if (search) {
+    query = query.or(
+      `username.ilike.%${search}%,name.ilike.%${search}%,contact.ilike.%${search}%,domisili.ilike.%${search}%`
+    )
+  }
+
+  const sortColumn = sortBy === 'lastSearchedAt' ? 'ProfileLookup.lastSearchedAt' : sortBy
+  query = query.order(sortColumn, { ascending: sortOrder === 'asc', foreignTable: 'ProfileLookup' })
+
+  query = query.range((page - 1) * pageSize, page * pageSize - 1)
+
+  const { data, count, error } = await query
+  if (error) throw error
+
+  const merged = (data ?? []).map((row: any) => {
+    const pl = Array.isArray(row.ProfileLookup) ? row.ProfileLookup[0] : row.ProfileLookup
+    const hasScraped = !!pl
+
+    return {
+      id: row.id,
+      platform: row.platform as 'instagram' | 'tiktok',
+      username: row.username,
+      profileUrl: row.profileUrl,
+      name: row.name,
+      contact: row.contact,
+      rateIdr: row.rateIdr,
+      categories: row.categories,
+      domisili: row.domisili,
+      tier: row.tier,
+      scopeOfWork: row.scopeOfWork,
+      scopeQty: row.scopeQty,
+      remarks: row.remarks,
+      status: row.status,
+      followers: hasScraped && pl.followers != null ? pl.followers : row.followers,
+      avgViews: hasScraped && pl.avgViews != null ? pl.avgViews : row.avgViews,
+      avgLikes: hasScraped && pl.avgLikes != null ? pl.avgLikes : null,
+      avgComments: hasScraped && pl.avgComments != null ? pl.avgComments : null,
+      avgShares: hasScraped && pl.avgShares != null ? pl.avgShares : null,
+      engagementRate: hasScraped && pl.engagementRate != null ? pl.engagementRate : row.erPercent,
+      profilePicture: hasScraped ? pl.profilePicture : null,
+      bio: hasScraped ? pl.bio : null,
+      postCount: hasScraped ? pl.postCount : null,
+      lastSearchedAt: hasScraped ? pl.lastSearchedAt : null,
+      hasScrapedData: hasScraped,
+    }
+  })
+
+  let filtered = merged
+  if (scrapedOnly) filtered = filtered.filter((m) => m.hasScrapedData)
+  if (unscrapedOnly) filtered = filtered.filter((m) => !m.hasScrapedData)
+
+  return {
+    profiles: filtered,
+    total: count ?? 0,
+    page,
+    pageSize,
+    totalPages: Math.ceil((count ?? 0) / pageSize),
   }
 }

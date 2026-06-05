@@ -62,6 +62,16 @@ export function Header() {
           >
             Discovery
           </Link>
+          <Link
+            href="/import"
+            className="px-3.5 py-2 rounded-lg text-sm font-medium transition-colors"
+            style={{
+              color: pathname === '/import' ? '#ffffff' : 'rgba(255,255,255,0.7)',
+              background: pathname === '/import' ? 'rgba(59,130,246,0.1)' : 'transparent',
+            }}
+          >
+            Import
+          </Link>
           <a
             href="https://protonmedia.co.id"
             target="_blank"

@@ -56,3 +56,65 @@ export function calculateEngagementRate(
   const interactions = avgLikes + avgComments + (avgShares || 0)
   return (interactions / followers) * 100
 }
+
+export function parseFormattedNumber(value: string | undefined | null): number | null {
+  if (!value) return null
+  const cleaned = String(value).replace(/[,\s]/g, '').trim()
+  if (!cleaned) return null
+  const num = Number(cleaned)
+  return Number.isFinite(num) ? num : null
+}
+
+export function normalizePlatform(value: string | undefined | null): 'instagram' | 'tiktok' | null {
+  if (!value) return null
+  const v = value.toLowerCase().trim()
+  if (v === 'instagram' || v === 'ig' || v === 'ig reels') return 'instagram'
+  if (v === 'tiktok' || v === 'tt') return 'tiktok'
+  return null
+}
+
+export function usernameFromUrl(url: string): { username: string | null; platform: 'instagram' | 'tiktok' | null } {
+  const igMatch = url.match(/instagram\.com\/([\w.-]+)/)
+  if (igMatch) return { username: igMatch[1].replace(/\/$/, ''), platform: 'instagram' }
+
+  const ttMatch = url.match(/tiktok\.com\/@([\w.-]+)/)
+  if (ttMatch) return { username: ttMatch[1].replace(/\/$/, ''), platform: 'tiktok' }
+
+  return { username: null, platform: null }
+}
+
+export function parseCSV(text: string): { headers: string[]; rows: string[][] } {
+  const firstLine = text.split(/\r?\n/)[0] || ''
+  const delimiter = firstLine.includes('\t') ? '\t' : ','
+
+  const lines = text.split(/\r?\n/).filter((l) => l.trim().length > 0)
+  if (lines.length === 0) return { headers: [], rows: [] }
+
+  const parseLine = (line: string): string[] => {
+    const result: string[] = []
+    let cur = ''
+    let inQuotes = false
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i]
+      if (ch === '"') {
+        if (inQuotes && line[i + 1] === '"') {
+          cur += '"'
+          i++
+        } else {
+          inQuotes = !inQuotes
+        }
+      } else if (ch === delimiter && !inQuotes) {
+        result.push(cur.trim())
+        cur = ''
+      } else {
+        cur += ch
+      }
+    }
+    result.push(cur.trim())
+    return result
+  }
+
+  const headers = parseLine(lines[0])
+  const rows = lines.slice(1).map(parseLine)
+  return { headers, rows }
+}
