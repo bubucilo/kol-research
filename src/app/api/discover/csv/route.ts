@@ -3,6 +3,15 @@ import { getAllProfiles } from '@/lib/db'
 
 export const runtime = 'nodejs'
 
+function parseRangeParam(value: string | null): string[] | undefined {
+  if (!value) return undefined
+  const parts = value
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean)
+  return parts.length > 0 ? parts : undefined
+}
+
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams
@@ -18,6 +27,11 @@ export async function GET(request: NextRequest) {
       sortOrder,
       page: 1,
       pageSize: 10000,
+      followerRanges: parseRangeParam(searchParams.get('followerRanges')),
+      postRanges: parseRangeParam(searchParams.get('postRanges')),
+      viewRanges: parseRangeParam(searchParams.get('viewRanges')),
+      likeRanges: parseRangeParam(searchParams.get('likeRanges')),
+      erRanges: parseRangeParam(searchParams.get('erRanges')),
     })
 
     const headers = [

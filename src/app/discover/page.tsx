@@ -14,6 +14,11 @@ import {
   ExternalLink,
   Sparkles,
 } from 'lucide-react'
+import {
+  DiscoverFilters,
+  EMPTY_FILTERS,
+  type FilterState,
+} from '@/components/discover-filters'
 
 interface Profile {
   id: string
@@ -43,6 +48,7 @@ export default function DiscoverPage() {
   const [platform, setPlatform] = useState('all')
   const [sortBy, setSortBy] = useState('lastSearchedAt')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
+  const [filters, setFilters] = useState<FilterState>(EMPTY_FILTERS)
   const [loading, setLoading] = useState(false)
   const [copiedId, setCopiedId] = useState<string | null>(null)
 
@@ -57,6 +63,11 @@ export default function DiscoverPage() {
       })
       if (platform !== 'all') params.set('platform', platform)
       if (search) params.set('search', search)
+      if (filters.followerRanges.length) params.set('followerRanges', filters.followerRanges.join(','))
+      if (filters.postRanges.length) params.set('postRanges', filters.postRanges.join(','))
+      if (filters.viewRanges.length) params.set('viewRanges', filters.viewRanges.join(','))
+      if (filters.likeRanges.length) params.set('likeRanges', filters.likeRanges.join(','))
+      if (filters.erRanges.length) params.set('erRanges', filters.erRanges.join(','))
 
       const res = await fetch(`/api/discover?${params}`)
       const data = await res.json()
@@ -71,11 +82,16 @@ export default function DiscoverPage() {
     } finally {
       setLoading(false)
     }
-  }, [page, platform, search, sortBy, sortOrder])
+  }, [page, platform, search, sortBy, sortOrder, filters])
 
   useEffect(() => {
     fetchProfiles()
   }, [fetchProfiles])
+
+  const handleFiltersChange = (next: FilterState) => {
+    setFilters(next)
+    setPage(1)
+  }
 
   const handleSort = (column: string) => {
     if (sortBy === column) {
@@ -91,6 +107,11 @@ export default function DiscoverPage() {
     const params = new URLSearchParams()
     if (platform !== 'all') params.set('platform', platform)
     if (search) params.set('search', search)
+    if (filters.followerRanges.length) params.set('followerRanges', filters.followerRanges.join(','))
+    if (filters.postRanges.length) params.set('postRanges', filters.postRanges.join(','))
+    if (filters.viewRanges.length) params.set('viewRanges', filters.viewRanges.join(','))
+    if (filters.likeRanges.length) params.set('likeRanges', filters.likeRanges.join(','))
+    if (filters.erRanges.length) params.set('erRanges', filters.erRanges.join(','))
     params.set('sortBy', sortBy)
     params.set('sortOrder', sortOrder)
     window.open(`/api/discover/csv?${params}`, '_blank')
@@ -162,6 +183,13 @@ export default function DiscoverPage() {
             Browse all analyzed profiles. Data is cached for 3 months.
           </p>
         </div>
+
+        <DiscoverFilters
+          state={filters}
+          onChange={handleFiltersChange}
+          total={total}
+          matchCount={loading ? null : total}
+        />
 
         <div className="tool-card rounded-xl p-4 mb-6">
           <div className="flex flex-col md:flex-row gap-3">

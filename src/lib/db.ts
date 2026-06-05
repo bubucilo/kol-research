@@ -194,6 +194,70 @@ export async function saveProfile(profile: ProfileData): Promise<void> {
   }
 }
 
+type RangeBucket = { key: string; min: number | null; max: number | null }
+
+const FOLLOWER_BUCKETS: RangeBucket[] = [
+  { key: 'nano',  min: 0,           max: 10_000 },
+  { key: 'micro', min: 10_000,      max: 100_000 },
+  { key: 'mid',   min: 100_000,     max: 500_000 },
+  { key: 'macro', min: 500_000,     max: 1_000_000 },
+  { key: 'mega',  min: 1_000_000,   max: null },
+]
+
+const POST_BUCKETS: RangeBucket[] = [
+  { key: 'few',    min: 0,     max: 50 },
+  { key: 'active', min: 50,    max: 200 },
+  { key: 'power',  min: 200,   max: 1_000 },
+  { key: 'pro',    min: 1_000, max: null },
+]
+
+const VIEW_BUCKETS: RangeBucket[] = [
+  { key: 'low',   min: 0,           max: 1_000 },
+  { key: 'mid',   min: 1_000,       max: 10_000 },
+  { key: 'high',  min: 10_000,      max: 100_000 },
+  { key: 'viral', min: 100_000,     max: 1_000_000 },
+  { key: 'mega',  min: 1_000_000,   max: null },
+]
+
+const LIKE_BUCKETS: RangeBucket[] = [
+  { key: 'low',   min: 0,        max: 100 },
+  { key: 'mid',   min: 100,      max: 1_000 },
+  { key: 'high',  min: 1_000,    max: 10_000 },
+  { key: 'viral', min: 10_000,   max: 100_000 },
+  { key: 'mega',  min: 100_000,  max: null },
+]
+
+const ER_BUCKETS: RangeBucket[] = [
+  { key: 'low',       min: 0, max: 1 },
+  { key: 'avg',       min: 1, max: 3 },
+  { key: 'good',      min: 3, max: 6 },
+  { key: 'excellent', min: 6, max: null },
+]
+
+function bucketToFilter(bucket: RangeBucket, column: string): string {
+  const parts: string[] = []
+  if (bucket.min !== null) parts.push(`${column}.gte.${bucket.min}`)
+  if (bucket.max !== null) parts.push(`${column}.lt.${bucket.max}`)
+  if (parts.length === 0) return ''
+  if (parts.length === 1) return parts[0]
+  return `and(${parts.join(',')})`
+}
+
+function buildRangeFilter(
+  keys: string[],
+  buckets: RangeBucket[],
+  column: string
+): string | null {
+  if (!keys || keys.length === 0) return null
+  const conds = keys
+    .map((k) => buckets.find((b) => b.key === k))
+    .filter((b): b is RangeBucket => !!b)
+    .map((b) => bucketToFilter(b, column))
+    .filter(Boolean)
+  if (conds.length === 0) return null
+  return conds.join(',')
+}
+
 export async function getAllProfiles(options?: {
   platform?: string
   search?: string
@@ -201,6 +265,11 @@ export async function getAllProfiles(options?: {
   sortOrder?: 'asc' | 'desc'
   page?: number
   pageSize?: number
+  followerRanges?: string[]
+  postRanges?: string[]
+  viewRanges?: string[]
+  likeRanges?: string[]
+  erRanges?: string[]
 }) {
   const {
     platform,
@@ -209,6 +278,11 @@ export async function getAllProfiles(options?: {
     sortOrder = 'desc',
     page = 1,
     pageSize = 50,
+    followerRanges,
+    postRanges,
+    viewRanges,
+    likeRanges,
+    erRanges,
   } = options || {}
 
   let query = getClient()
@@ -221,8 +295,27 @@ export async function getAllProfiles(options?: {
     query = query.eq('platform', platform)
   }
 
-  if (search) {
-    query = query.or(`username.ilike.%${search}%,bio.ilike.%${search}%`)
+  const rangeFilters: string[] = []
+  const f = buildRangeFilter(followerRanges || [], FOLLOWER_BUCKETS, 'followers')
+  if (f) rangeFilters.push(f)
+  const p = buildRangeFilter(postRanges || [], POST_BUCKETS, 'postCount')
+  if (p) rangeFilters.push(p)
+  const v = buildRangeFilter(viewRanges || [], VIEW_BUCKETS, 'avgViews')
+  if (v) rangeFilters.push(v)
+  const l = buildRangeFilter(likeRanges || [], LIKE_BUCKETS, 'avgLikes')
+  if (l) rangeFilters.push(l)
+  const e = buildRangeFilter(erRanges || [], ER_BUCKETS, 'engagementRate')
+  if (e) rangeFilters.push(e)
+
+  const searchCond = search
+    ? `username.ilike.%${search}%,bio.ilike.%${search}%`
+    : null
+
+  const allConds = [searchCond, ...rangeFilters].filter((c): c is string => Boolean(c))
+  if (allConds.length === 1) {
+    query = query.or(allConds[0])
+  } else if (allConds.length > 1) {
+    query = query.or(allConds.join(','))
   }
 
   const { data, count, error } = await query
