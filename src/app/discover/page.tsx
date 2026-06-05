@@ -3,6 +3,13 @@
 import { useState, useEffect, useCallback } from 'react'
 import { formatNumber, formatEngagementRate } from '@/lib/utils'
 import {
+  Phone,
+  DollarSign,
+  MapPin,
+  Tag,
+  Database,
+  Activity,
+  Pencil,
   Search,
   Download,
   Copy,
@@ -11,18 +18,16 @@ import {
   ChevronDown,
   ExternalLink,
   Sparkles,
-  Phone,
-  DollarSign,
-  MapPin,
-  Tag,
-  Database,
-  Activity,
 } from 'lucide-react'
 import {
   DiscoverFilters,
   EMPTY_FILTERS,
   type FilterState,
 } from '@/components/discover-filters'
+import {
+  ContactEditModal,
+  type EditableContact,
+} from '@/components/contact-edit-modal'
 
 interface MergedProfile {
   id: string
@@ -38,7 +43,9 @@ interface MergedProfile {
   domisili: string | null
   tier: string | null
   scopeOfWork: string | null
+  scopeQty: number | null
   remarks: string | null
+  status: string | null
   followers: number | null
   avgViews: number | null
   avgLikes: number | null
@@ -64,6 +71,7 @@ export default function DiscoverPage() {
   const [loading, setLoading] = useState(false)
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [editing, setEditing] = useState<EditableContact | null>(null)
 
   const fetchProfiles = useCallback(async () => {
     setLoading(true)
@@ -566,6 +574,27 @@ export default function DiscoverPage() {
                       <td className="p-4 text-right">
                         <div className="flex items-center justify-end gap-1">
                           <button
+                            onClick={() => {
+                              setEditing({
+                                id: profile.id,
+                                name: profile.name,
+                                contact: profile.contact,
+                                rateIdr: profile.rateIdr,
+                                categories: profile.categories,
+                                domisili: profile.domisili,
+                                tier: profile.tier,
+                                scopeOfWork: profile.scopeOfWork,
+                                scopeQty: profile.scopeQty,
+                                remarks: profile.remarks,
+                                status: profile.status,
+                              })
+                            }}
+                            className="p-2 rounded-lg transition-colors text-[#94A3B8] hover:text-[#FBBF24]"
+                            title="Edit contact info"
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </button>
+                          <button
                             onClick={() => handleCopy(profile)}
                             className="p-2 rounded-lg transition-colors"
                             style={{ color: copiedId === profile.id ? '#34D399' : '#94A3B8' }}
@@ -657,6 +686,32 @@ export default function DiscoverPage() {
           )}
         </div>
       </div>
+
+      <ContactEditModal
+        contact={editing}
+        onClose={() => setEditing(null)}
+        onSaved={(updated) => {
+          setProfiles((prev) =>
+            prev.map((p) =>
+              p.id === updated.id
+                ? {
+                    ...p,
+                    name: updated.name,
+                    contact: updated.contact,
+                    rateIdr: updated.rateIdr,
+                    categories: updated.categories,
+                    domisili: updated.domisili,
+                    tier: updated.tier,
+                    scopeOfWork: updated.scopeOfWork,
+                    scopeQty: updated.scopeQty,
+                    remarks: updated.remarks,
+                    status: updated.status,
+                  }
+                : p
+            )
+          )
+        }}
+      />
     </div>
   )
 }

@@ -43,7 +43,7 @@ export default function Home() {
         return
       }
 
-      const encoded = encodeURIComponent(JSON.stringify(data.data))
+      const encoded = encodeURIComponent(JSON.stringify({ profile: data.data, crm: data.crm }))
       router.push(`/results?data=${encoded}`)
     } catch (err: any) {
       setError(err.message || 'Something went wrong. Please try again.')

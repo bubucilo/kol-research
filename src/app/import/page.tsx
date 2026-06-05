@@ -13,6 +13,7 @@ type ImportResult = {
 
 export default function ImportPage() {
   const [file, setFile] = useState<File | null>(null)
+  const [overwrite, setOverwrite] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [result, setResult] = useState<ImportResult | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -39,6 +40,7 @@ export default function ImportPage() {
     try {
       const formData = new FormData()
       formData.append('file', file)
+      if (overwrite) formData.append('overwrite', 'true')
 
       const res = await fetch('/api/import/kol-csv', {
         method: 'POST',
@@ -59,6 +61,33 @@ export default function ImportPage() {
       setUploading(false)
     }
   }
+
+      {file && !result && (
+        <div className="mt-4 flex gap-3">
+          <button
+            onClick={handleUpload}
+            disabled={uploading}
+            className="flex-1 px-6 py-3 rounded-xl font-semibold text-white transition-all disabled:opacity-50"
+            style={{
+              background: 'linear-gradient(135deg, #0066FF, #00AAFF)',
+              boxShadow: '0 4px 16px rgba(0, 102, 255, 0.3)',
+            }}
+          >
+            {uploading ? 'Importing...' : `Import ${file.name}`}
+          </button>
+          <button
+            onClick={() => {
+              setFile(null)
+              setResult(null)
+              setError(null)
+            }}
+            className="px-6 py-3 rounded-xl font-medium text-white/70 hover:text-white transition-colors"
+            style={{ background: 'rgba(255,255,255,0.05)' }}
+          >
+            Clear
+          </button>
+        </div>
+      )}
 
   const handleDownloadTemplate = () => {
     const template = `No\tName\tLink Profile\tChannel\tCategories\tFollowers\tTier\tER %\tAVG Views\tGMV\tScope Qty\tScope of Work\tRate\tRemarks\tDomisili\tContact
@@ -127,6 +156,43 @@ export default function ImportPage() {
           </>
         )}
       </div>
+
+      {file && !result && (
+        <label
+          className="mt-4 flex items-start gap-3 p-4 rounded-xl cursor-pointer transition-colors"
+          style={{
+            background: overwrite ? 'rgba(251,146,60,0.08)' : 'rgba(255,255,255,0.02)',
+            border: overwrite
+              ? '1px solid rgba(251,146,60,0.3)'
+              : '1px solid rgba(255,255,255,0.06)',
+          }}
+        >
+          <input
+            type="checkbox"
+            checked={overwrite}
+            onChange={(e) => setOverwrite(e.target.checked)}
+            className="mt-0.5 w-4 h-4 rounded accent-[#FB923C] cursor-pointer"
+          />
+          <div className="flex-1">
+            <div className="flex items-center gap-2">
+              <span className="text-white font-medium text-sm">Overwrite existing data</span>
+              {overwrite && (
+                <span
+                  className="text-[10px] px-1.5 py-0.5 rounded font-semibold uppercase tracking-wide"
+                  style={{ background: 'rgba(251,146,60,0.2)', color: '#FB923C' }}
+                >
+                  Destructive
+                </span>
+              )}
+            </div>
+            <p className="text-xs text-white/50 mt-1">
+              {overwrite
+                ? 'CSV values will replace all existing fields (contact, rate, niche, etc.) for matching KOLs.'
+                : 'Default: only fill empty fields. Existing contact/rate/niche are preserved.'}
+            </p>
+          </div>
+        </label>
+      )}
 
       {file && !result && (
         <div className="mt-4 flex gap-3">

@@ -106,9 +106,28 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Fetch matching KOLContacts row (CRM data) so /results can show business info
+    let crm: any = null
+    if (platform && username) {
+      try {
+        const { data: crmRow } = await getClient()
+          .from('KOLContacts')
+          .select(
+            'id, name, contact, rateIdr, categories, domisili, tier, scopeOfWork, scopeQty, remarks, status'
+          )
+          .eq('platform', platform)
+          .eq('username', username)
+          .maybeSingle()
+        crm = crmRow
+      } catch (crmErr) {
+        console.warn('[profile] Failed to fetch KOLContacts:', crmErr)
+      }
+    }
+
     return NextResponse.json({
       success: true,
       data: profileData,
+      crm,
     })
   } catch (error) {
     if (error instanceof ProfileError) {

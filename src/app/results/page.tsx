@@ -17,13 +17,34 @@ import {
   Camera,
   Music,
   Copy,
-  Check
+  Check,
+  Phone,
+  DollarSign,
+  MapPin,
+  Tag,
+  Briefcase,
+  StickyNote,
 } from 'lucide-react'
 import Link from 'next/link'
+
+type CRMData = {
+  id: string
+  name: string | null
+  contact: string | null
+  rateIdr: number | null
+  categories: string | null
+  domisili: string | null
+  tier: string | null
+  scopeOfWork: string | null
+  scopeQty: number | null
+  remarks: string | null
+  status: string | null
+}
 
 function ResultsContent() {
   const searchParams = useSearchParams()
   const [profile, setProfile] = useState<ProfileData | null>(null)
+  const [crm, setCrm] = useState<CRMData | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
 
@@ -36,7 +57,12 @@ function ResultsContent() {
 
     try {
       const decoded = JSON.parse(decodeURIComponent(dataParam))
-      setProfile(decoded)
+      if (decoded.profile) {
+        setProfile(decoded.profile)
+        setCrm(decoded.crm || null)
+      } else {
+        setProfile(decoded)
+      }
     } catch {
       setError('Invalid profile data')
     }
@@ -217,6 +243,110 @@ function ResultsContent() {
             )
           })}
         </div>
+
+        {crm && (
+          <div
+            className="tool-card rounded-2xl p-6 mb-6"
+            style={{
+              background: 'linear-gradient(135deg, rgba(59,130,246,0.06), rgba(0,170,255,0.04))',
+              border: '1px solid rgba(59,130,246,0.18)',
+            }}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-white">CRM Info</h2>
+              <span
+                className="text-[10px] px-2 py-0.5 rounded font-semibold uppercase tracking-wide"
+                style={{
+                  background: 'rgba(59,130,246,0.15)',
+                  color: '#60A5FA',
+                }}
+              >
+                In your database
+              </span>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-3 text-sm">
+              {crm.name && (
+                <div className="flex items-start gap-2">
+                  <span className="text-[#64748B] w-24 flex-shrink-0">Name</span>
+                  <span className="text-white font-medium">{crm.name}</span>
+                </div>
+              )}
+              {crm.contact && (
+                <div className="flex items-start gap-2">
+                  <Phone className="w-3.5 h-3.5 mt-0.5 text-[#34D399] flex-shrink-0" />
+                  <a
+                    href={`https://wa.me/${crm.contact.replace(/\D/g, '')}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-white hover:text-[#34D399] transition-colors font-medium"
+                  >
+                    {crm.contact}
+                  </a>
+                </div>
+              )}
+              {crm.rateIdr != null && crm.rateIdr > 0 && (
+                <div className="flex items-start gap-2">
+                  <DollarSign className="w-3.5 h-3.5 mt-0.5 text-[#FBBF24] flex-shrink-0" />
+                  <span className="text-white font-medium">
+                    Rp {crm.rateIdr.toLocaleString('id-ID')}
+                  </span>
+                </div>
+              )}
+              {crm.categories && (
+                <div className="flex items-start gap-2">
+                  <Tag className="w-3.5 h-3.5 mt-0.5 text-[#3B82F6] flex-shrink-0" />
+                  <span className="text-white">{crm.categories}</span>
+                </div>
+              )}
+              {crm.domisili && (
+                <div className="flex items-start gap-2">
+                  <MapPin className="w-3.5 h-3.5 mt-0.5 text-[#94A3B8] flex-shrink-0" />
+                  <span className="text-white">{crm.domisili}</span>
+                </div>
+              )}
+              {crm.tier && (
+                <div className="flex items-start gap-2">
+                  <span className="text-[#64748B] w-24 flex-shrink-0">Tier</span>
+                  <span className="text-white font-medium">{crm.tier}</span>
+                </div>
+              )}
+              {crm.scopeOfWork && (
+                <div className="flex items-start gap-2">
+                  <Briefcase className="w-3.5 h-3.5 mt-0.5 text-[#A78BFA] flex-shrink-0" />
+                  <span className="text-white">
+                    {crm.scopeQty && crm.scopeQty > 1 ? `${crm.scopeQty}× ` : ''}
+                    {crm.scopeOfWork}
+                  </span>
+                </div>
+              )}
+              {crm.status && (
+                <div className="flex items-start gap-2">
+                  <span className="text-[#64748B] w-24 flex-shrink-0">Status</span>
+                  <span
+                    className="text-[10px] px-2 py-0.5 rounded font-semibold uppercase tracking-wide"
+                    style={
+                      crm.status === 'deal'
+                        ? { background: 'rgba(52,211,153,0.15)', color: '#34D399' }
+                        : crm.status === 'contacted'
+                        ? { background: 'rgba(251,191,36,0.15)', color: '#FBBF24' }
+                        : crm.status === 'warm'
+                        ? { background: 'rgba(251,146,60,0.15)', color: '#FB923C' }
+                        : { background: 'rgba(148,163,184,0.1)', color: '#94A3B8' }
+                    }
+                  >
+                    {crm.status}
+                  </span>
+                </div>
+              )}
+              {crm.remarks && (
+                <div className="flex items-start gap-2 md:col-span-2">
+                  <StickyNote className="w-3.5 h-3.5 mt-0.5 text-[#FBBF24] flex-shrink-0" />
+                  <span className="text-white/80 italic">{crm.remarks}</span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {profile.recentContent.length > 0 && (
           <div className="tool-card rounded-2xl overflow-hidden">

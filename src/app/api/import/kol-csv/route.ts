@@ -45,6 +45,7 @@ export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData()
     const file = formData.get('file') as File | null
+    const overwrite = formData.get('overwrite') === 'true'
 
     if (!file) {
       return NextResponse.json(
@@ -181,7 +182,15 @@ export async function POST(request: NextRequest) {
               continue
             }
 
-            // Merge: only update fields that are empty in existing
+            // Overwrite mode: replace all fields from CSV (except _rowNum marker)
+            if (overwrite) {
+              const { _rowNum, ...fields } = r
+              // Don't overwrite lastScrapedAt or anything that isn't in the CSV
+              toUpdate.push({ id: ex.id, fields, rowNum })
+              continue
+            }
+
+            // Default merge: only update fields that are empty in existing
             const updates: any = {}
             const tryUpdate = (col: string, csvVal: any) => {
               const isEmpty =
@@ -209,7 +218,6 @@ export async function POST(request: NextRequest) {
             if (Object.keys(updates).length > 0) {
               toUpdate.push({ id: ex.id, fields: updates, rowNum })
             } else {
-              // No changes — count as update (still "touched" the row, but no diff)
               const created = new Date(ex.importedAt).getTime()
               const ageMs = Date.now() - created
               if (ageMs < 5000) {
