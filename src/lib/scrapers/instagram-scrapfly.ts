@@ -216,18 +216,23 @@ export async function scrapeInstagramViaScrapfly(
       console.warn(`[instagram] @${username}: /reels page scrape failed:`, e)
     }
 
-    const sumViews = recentContent.reduce((sum, v) => sum + v.views, 0)
-    const sumLikes = recentContent.reduce((sum, v) => sum + v.likes, 0)
-    const sumComments = recentContent.reduce((sum, v) => sum + v.comments, 0)
+    // Only include videos with views > 0 in averages (Instagram doesn't show views on image/carousel posts)
+    const videosWithViews = recentContent.filter((v) => v.views > 0)
 
-    const avgViews = recentContent.length > 0 ? Math.round(sumViews / recentContent.length) : 0
-    const avgLikes = recentContent.length > 0 ? Math.round(sumLikes / recentContent.length) : 0
-    const avgComments = recentContent.length > 0 ? Math.round(sumComments / recentContent.length) : 0
+    const sumViews = videosWithViews.reduce((sum, v) => sum + v.views, 0)
+    const sumLikes = videosWithViews.reduce((sum, v) => sum + v.likes, 0)
+    const sumComments = videosWithViews.reduce((sum, v) => sum + v.comments, 0)
+
+    const avgViews = videosWithViews.length > 0 ? Math.round(sumViews / videosWithViews.length) : 0
+    const avgLikes = videosWithViews.length > 0 ? Math.round(sumLikes / videosWithViews.length) : 0
+    const avgComments = videosWithViews.length > 0 ? Math.round(sumComments / videosWithViews.length) : 0
 
     const engagementRate =
       sumViews > 0
         ? Math.round(((sumLikes + sumComments) / sumViews) * 10000) / 100
         : 0
+
+    console.log(`[instagram] @${username}: ${videosWithViews.length}/${recentContent.length} videos have views, avgViews=${avgViews}, avgLikes=${avgLikes}, engagement=${engagementRate}%`)
 
     return {
       platform: 'instagram',
