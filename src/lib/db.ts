@@ -243,7 +243,7 @@ function bucketToFilter(bucket: RangeBucket, column: string): string {
   return `and(${parts.join(',')})`
 }
 
-function buildRangeFilter(
+function buildRangeOrFilter(
   keys: string[],
   buckets: RangeBucket[],
   column: string
@@ -255,7 +255,7 @@ function buildRangeFilter(
     .map((b) => bucketToFilter(b, column))
     .filter(Boolean)
   if (conds.length === 0) return null
-  return conds.join(',')
+  return conds.length === 1 ? conds[0] : `or(${conds.join(',')})`
 }
 
 export async function getAllProfiles(options?: {
@@ -296,26 +296,26 @@ export async function getAllProfiles(options?: {
   }
 
   const rangeFilters: string[] = []
-  const f = buildRangeFilter(followerRanges || [], FOLLOWER_BUCKETS, 'followers')
+  const f = buildRangeOrFilter(followerRanges || [], FOLLOWER_BUCKETS, 'followers')
   if (f) rangeFilters.push(f)
-  const p = buildRangeFilter(postRanges || [], POST_BUCKETS, 'postCount')
+  const p = buildRangeOrFilter(postRanges || [], POST_BUCKETS, 'postCount')
   if (p) rangeFilters.push(p)
-  const v = buildRangeFilter(viewRanges || [], VIEW_BUCKETS, 'avgViews')
+  const v = buildRangeOrFilter(viewRanges || [], VIEW_BUCKETS, 'avgViews')
   if (v) rangeFilters.push(v)
-  const l = buildRangeFilter(likeRanges || [], LIKE_BUCKETS, 'avgLikes')
+  const l = buildRangeOrFilter(likeRanges || [], LIKE_BUCKETS, 'avgLikes')
   if (l) rangeFilters.push(l)
-  const e = buildRangeFilter(erRanges || [], ER_BUCKETS, 'engagementRate')
+  const e = buildRangeOrFilter(erRanges || [], ER_BUCKETS, 'engagementRate')
   if (e) rangeFilters.push(e)
 
   const searchCond = search
-    ? `username.ilike.%${search}%,bio.ilike.%${search}%`
+    ? `or(username.ilike.%${search}%,bio.ilike.%${search}%)`
     : null
 
   const allConds = [searchCond, ...rangeFilters].filter((c): c is string => Boolean(c))
   if (allConds.length === 1) {
     query = query.or(allConds[0])
   } else if (allConds.length > 1) {
-    query = query.or(allConds.join(','))
+    query = query.or(`and(${allConds.join(',')})`)
   }
 
   const { data, count, error } = await query
