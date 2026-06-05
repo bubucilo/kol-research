@@ -46,3 +46,8 @@ next-env.d.ts
 node_modules
 .next
 src/generated
+
+# Temp PowerPoint lock files
+~$*.pptx
+# Pitch deck (lives on Desktop, not in repo)
+KOLScope_Pitch_Deck.pptx
