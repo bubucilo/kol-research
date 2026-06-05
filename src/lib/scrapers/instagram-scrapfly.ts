@@ -10,9 +10,9 @@ export async function scrapeInstagramViaScrapfly(
 ): Promise<ProfileData> {
   const profileUrl = `https://www.instagram.com/${username}/`
   const reelsUrl = `https://www.instagram.com/${username}/reels/`
-  const scrapeUrl = isReels ? reelsUrl : profileUrl
 
   try {
+    // Step 1: Scrape profile page for metadata (followers, bio, pic, postCount)
     const profileResult = await scrapeWithScrapfly({
       url: profileUrl,
       asp: true,
@@ -112,16 +112,29 @@ export async function scrapeInstagramViaScrapfly(
     const recentContent: ContentItem[] = []
 
     try {
+      // Step 2: Scrape /reels page for video links (more consistent than profile grid)
+      console.log(`[instagram] @${username}: scraping /reels page for video links...`)
+      const reelsResult = await scrapeWithScrapfly({
+        url: reelsUrl,
+        asp: true,
+        renderJs: true,
+        country: 'us',
+      })
+
+      const reelsHtml = reelsResult.content || ''
+
+      // Extract reel links from /reels page — video-only, no image posts
       const postLinks: string[] = []
-      const linkMatches = html.matchAll(/href="(\/p\/[A-Za-z0-9_-]+\/)"/g)
-      for (const match of linkMatches) {
-        if (postLinks.length >= POSTS_TO_SCRAPE) break
+      const reelMatches = reelsHtml.matchAll(/href="(\/reel\/[A-Za-z0-9_-]+\/)"/g)
+      for (const match of reelMatches) {
+        if (postLinks.length >= POSTS_TO_SCRAPE + POSTS_TO_SKIP) break
         postLinks.push(`https://www.instagram.com${match[1]}`)
       }
 
-      const reelsMatches = html.matchAll(/href="(\/reel\/[A-Za-z0-9_-]+\/)"/g)
-      for (const match of reelsMatches) {
-        if (postLinks.length >= POSTS_TO_SCRAPE) break
+      // Also grab /p/ links from reels page (some reels are served as /p/ URLs)
+      const pMatches = reelsHtml.matchAll(/href="(\/p\/[A-Za-z0-9_-]+\/)"/g)
+      for (const match of pMatches) {
+        if (postLinks.length >= POSTS_TO_SCRAPE + POSTS_TO_SKIP) break
         postLinks.push(`https://www.instagram.com${match[1]}`)
       }
 
@@ -132,9 +145,9 @@ export async function scrapeInstagramViaScrapfly(
         return true
       })
 
-      const linksToProcess = uniqueLinks.slice(POSTS_TO_SCRAPE > uniqueLinks.length ? 0 : POSTS_TO_SKIP, POSTS_TO_SCRAPE)
+      const linksToProcess = uniqueLinks.slice(POSTS_TO_SKIP, POSTS_TO_SCRAPE + POSTS_TO_SKIP)
 
-      console.log(`[instagram] @${username}: found ${uniqueLinks.length} post links in HTML (${postLinks.length - uniqueLinks.length} duplicates removed), skipping ${Math.min(POSTS_TO_SKIP, uniqueLinks.length)} pinned, scraping ${linksToProcess.length} posts`)
+      console.log(`[instagram] @${username}: /reels page returned ${uniqueLinks.length} unique video links, skipping ${Math.min(POSTS_TO_SKIP, uniqueLinks.length)} pinned, scraping ${linksToProcess.length} videos`)
 
       let scrapeSuccess = 0
       let scrapeFailed = 0
@@ -185,7 +198,7 @@ export async function scrapeInstagramViaScrapfly(
 
       console.log(`[instagram] @${username}: scrape results — ${scrapeSuccess} succeeded, ${scrapeNoMeta} no meta tag, ${scrapeFailed} failed → ${recentContent.length} videos in final dataset`)
     } catch (e) {
-      console.warn(`[instagram] @${username}: post link extraction failed:`, e)
+      console.warn(`[instagram] @${username}: /reels page scrape failed:`, e)
     }
 
     const sumViews = recentContent.reduce((sum, v) => sum + v.views, 0)
