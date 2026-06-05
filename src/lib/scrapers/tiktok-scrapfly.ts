@@ -105,10 +105,17 @@ export async function scrapeTikTokViaScrapfly(
     const avgComments = recentContent.length > 0 ? Math.round(sumComments / recentContent.length) : 0
     const avgShares = recentContent.length > 0 ? Math.round(sumShares / recentContent.length) : 0
 
-    const engagementRate =
+    const rawEngagement =
       sumViews > 0
         ? Math.round(((sumLikes + sumComments + sumShares) / sumViews) * 10000) / 100
         : 0
+
+    // Cap engagement at 100% — if likes+comments+shares exceed views, it's a data error
+    const engagementRate = rawEngagement > 100 ? 100 : rawEngagement
+
+    if (rawEngagement > 100) {
+      console.warn(`[tiktok] @${username}: engagement capped — raw=${rawEngagement}%, likes=${sumLikes}, comments=${sumComments}, shares=${sumShares}, views=${sumViews}`)
+    }
 
     return {
       platform: 'tiktok',

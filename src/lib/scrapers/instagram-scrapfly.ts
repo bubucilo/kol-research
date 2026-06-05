@@ -227,12 +227,20 @@ export async function scrapeInstagramViaScrapfly(
     const avgLikes = videosWithViews.length > 0 ? Math.round(sumLikes / videosWithViews.length) : 0
     const avgComments = videosWithViews.length > 0 ? Math.round(sumComments / videosWithViews.length) : 0
 
-    const engagementRate =
+    const rawEngagement =
       sumViews > 0
         ? Math.round(((sumLikes + sumComments) / sumViews) * 10000) / 100
         : 0
 
-    console.log(`[instagram] @${username}: ${videosWithViews.length}/${recentContent.length} videos have views, avgViews=${avgViews}, avgLikes=${avgLikes}, engagement=${engagementRate}%`)
+    // Cap engagement at 100% — if likes+comments exceed views, it's a data error
+    // (carousels picked up, wrong meta parsed, etc). Log so we can investigate.
+    const engagementRate = rawEngagement > 100 ? 100 : rawEngagement
+
+    if (rawEngagement > 100) {
+      console.warn(`[instagram] @${username}: engagement capped — raw=${rawEngagement}%, likes=${sumLikes}, comments=${sumComments}, views=${sumViews}, videosWithViews=${videosWithViews.length}/${recentContent.length}`)
+    }
+
+    console.log(`[instagram] @${username}: ${videosWithViews.length}/${recentContent.length} videos have views, avgViews=${avgViews}, avgLikes=${avgLikes}, engagement=${engagementRate}%${rawEngagement > 100 ? ` (raw was ${rawEngagement}%)` : ''}`)
 
     return {
       platform: 'instagram',
