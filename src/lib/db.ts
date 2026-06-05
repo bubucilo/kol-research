@@ -471,8 +471,15 @@ export async function getMergedKOLs(options?: {
 
   let profileLookupMap = new Map<string, any>()
   if (rows.length > 0) {
+    const cutoff = new Date()
+    cutoff.setDate(cutoff.getDate() - CACHE_TTL_DAYS)
+    const cutoffIso = cutoff.toISOString()
+
     const orClauses = rows
-      .map((r) => `and(platform.eq.${r.platform},username.eq.${r.username})`)
+      .map(
+        (r) =>
+          `and(platform.eq.${r.platform},username.eq.${r.username},lastSearchedAt.gte.${cutoffIso})`
+      )
       .join(',')
     const { data: plData, error: plErr } = await supabase
       .from('ProfileLookup')

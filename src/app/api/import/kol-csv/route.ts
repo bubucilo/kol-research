@@ -147,28 +147,105 @@ export async function POST(request: NextRequest) {
           status: 'cold',
         }
 
-        batch.push(record)
+        batch.push({ ...record, _rowNum: rowNum })
 
         if (batch.length >= BATCH_SIZE || i === rows.length - 1) {
-          const { data: upserted, error } = await supabase
+          // Find existing rows in this batch to apply merge semantics:
+          // only update fields that are empty/missing in existing rows.
+          const pairs = batch
+            .map((r) => `and(platform.eq.${r.platform},username.eq.${r.username})`)
+            .join(',')
+          const { data: existing } = await supabase
             .from('KOLContacts')
-            .upsert(batch, { onConflict: 'platform,username', count: 'exact' })
-            .select('id, "importedAt", "updatedAt"')
+            .select(
+              'id, platform, username, name, contact, rateIdr, categories, domisili, scopeOfWork, scopeQty, remarks, tier, gmv, followers, erPercent, avgViews, importedAt'
+            )
+            .or(pairs)
 
-          if (error) {
-            for (const r of batch) {
-              result.errors.push({ row: rowNum, reason: error.message, data: r })
+          const existingMap = new Map<string, any>()
+          for (const e of existing || []) {
+            existingMap.set(`${e.platform}:${e.username}`, e)
+          }
+
+          const toInsert: any[] = []
+          const toUpdate: { id: string; fields: any; rowNum: number }[] = []
+
+          for (const r of batch) {
+            const key = `${r.platform}:${r.username}`
+            const ex = existingMap.get(key)
+            const rowNum = r._rowNum
+
+            if (!ex) {
+              const { _rowNum, ...insertRecord } = r
+              toInsert.push(insertRecord)
+              continue
             }
-            result.skipped += batch.length
-          } else {
-            for (const u of upserted || []) {
-              const created = new Date(u.importedAt).getTime()
-              const updated = new Date(u.updatedAt).getTime()
-              if (Math.abs(updated - created) < 1000) {
+
+            // Merge: only update fields that are empty in existing
+            const updates: any = {}
+            const tryUpdate = (col: string, csvVal: any) => {
+              const isEmpty =
+                ex[col] == null || ex[col] === '' || ex[col] === 0
+              if (isEmpty && csvVal != null && csvVal !== '') {
+                updates[col] = csvVal
+              }
+            }
+            tryUpdate('name', r.name)
+            tryUpdate('contact', r.contact)
+            tryUpdate('rateIdr', r.rateIdr)
+            tryUpdate('categories', r.categories)
+            tryUpdate('domisili', r.domisili)
+            tryUpdate('scopeOfWork', r.scopeOfWork)
+            tryUpdate('scopeQty', r.scopeQty)
+            tryUpdate('remarks', r.remarks)
+            tryUpdate('tier', r.tier)
+            tryUpdate('gmv', r.gmv)
+            tryUpdate('rowNo', r.rowNo)
+            // Engagement: prefer search-time baseline (already set) over CSV
+            tryUpdate('followers', r.followers)
+            tryUpdate('erPercent', r.erPercent)
+            tryUpdate('avgViews', r.avgViews)
+
+            if (Object.keys(updates).length > 0) {
+              toUpdate.push({ id: ex.id, fields: updates, rowNum })
+            } else {
+              // No changes — count as update (still "touched" the row, but no diff)
+              const created = new Date(ex.importedAt).getTime()
+              const ageMs = Date.now() - created
+              if (ageMs < 5000) {
                 result.imported++
               } else {
                 result.updated++
               }
+            }
+          }
+
+          // Batch insert
+          if (toInsert.length > 0) {
+            const { error: insErr } = await supabase
+              .from('KOLContacts')
+              .insert(toInsert)
+            if (insErr) {
+              for (const _ of toInsert) {
+                result.errors.push({ row: 0, reason: insErr.message })
+              }
+              result.skipped += toInsert.length
+            } else {
+              result.imported += toInsert.length
+            }
+          }
+
+          // Per-row update (PostgREST doesn't support batch update with different fields)
+          for (const u of toUpdate) {
+            const { error: updErr } = await supabase
+              .from('KOLContacts')
+              .update(u.fields)
+              .eq('id', u.id)
+            if (updErr) {
+              result.errors.push({ row: u.rowNum, reason: updErr.message })
+              result.skipped++
+            } else {
+              result.updated++
             }
           }
 

@@ -53,6 +53,7 @@ export default function DiscoverPage() {
   const [profiles, setProfiles] = useState<MergedProfile[]>([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(50)
   const [totalPages, setTotalPages] = useState(1)
   const [search, setSearch] = useState('')
   const [platform, setPlatform] = useState('all')
@@ -69,7 +70,7 @@ export default function DiscoverPage() {
     try {
       const params = new URLSearchParams({
         page: page.toString(),
-        pageSize: '50',
+        pageSize: pageSize.toString(),
         sortBy,
         sortOrder,
       })
@@ -102,7 +103,7 @@ export default function DiscoverPage() {
     } finally {
       setLoading(false)
     }
-  }, [page, platform, search, sortBy, sortOrder, filters, dataFilter])
+  }, [page, pageSize, platform, search, sortBy, sortOrder, filters, dataFilter])
 
   useEffect(() => {
     fetchProfiles()
@@ -318,10 +319,33 @@ export default function DiscoverPage() {
             </div>
           </div>
 
-          <div className="mt-3 flex items-center gap-3 text-xs text-[#64748B]">
+          <div className="mt-3 flex items-center gap-3 text-xs text-[#64748B] flex-wrap">
             <span className="font-semibold text-[#94A3B8]">{total}</span> profiles total
             <span>•</span>
+            <span>
+              Showing {(page - 1) * pageSize + 1}-{Math.min(page * pageSize, total)} of {total}
+            </span>
+            <span>•</span>
             <span>Page {page} of {totalPages || 1}</span>
+            <div className="ml-auto flex items-center gap-1.5">
+              <span className="text-[#64748B]">Rows:</span>
+              {[10, 20, 50, 100].map((n) => (
+                <button
+                  key={n}
+                  onClick={() => {
+                    setPageSize(n)
+                    setPage(1)
+                  }}
+                  className="px-2.5 py-1 rounded text-xs font-medium transition-colors"
+                  style={{
+                    background: pageSize === n ? 'rgba(59,130,246,0.15)' : 'rgba(255,255,255,0.04)',
+                    color: pageSize === n ? '#60A5FA' : '#94A3B8',
+                  }}
+                >
+                  {n}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -573,28 +597,62 @@ export default function DiscoverPage() {
 
           {totalPages > 1 && (
             <div
-              className="flex items-center justify-between p-4"
+              className="flex items-center justify-center gap-1 p-4 flex-wrap"
               style={{ borderTop: '1px solid rgba(255,255,255,0.07)' }}
             >
-              <button
-                onClick={() => setPage(Math.max(1, page - 1))}
-                disabled={page === 1}
-                className="px-4 py-2 rounded-lg text-white text-sm disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                style={{ background: 'rgba(255,255,255,0.04)' }}
-              >
-                Previous
-              </button>
-              <span className="text-[#94A3B8] text-sm">
-                Page {page} of {totalPages}
-              </span>
-              <button
-                onClick={() => setPage(Math.min(totalPages, page + 1))}
-                disabled={page === totalPages}
-                className="px-4 py-2 rounded-lg text-white text-sm disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                style={{ background: 'rgba(255,255,255,0.04)' }}
-              >
-                Next
-              </button>
+              {(() => {
+                const getPageNumbers = (current: number, total: number): (number | 'ellipsis')[] => {
+                  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1)
+                  if (current <= 4) return [1, 2, 3, 4, 5, 'ellipsis', total]
+                  if (current >= total - 3)
+                    return [1, 'ellipsis', total - 4, total - 3, total - 2, total - 1, total]
+                  return [1, 'ellipsis', current - 1, current, current + 1, 'ellipsis', total]
+                }
+                const pages = getPageNumbers(page, totalPages)
+                return (
+                  <>
+                    <button
+                      onClick={() => setPage(Math.max(1, page - 1))}
+                      disabled={page === 1}
+                      className="px-3 py-1.5 rounded-lg text-white text-sm disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                      style={{ background: 'rgba(255,255,255,0.04)' }}
+                    >
+                      ← Prev
+                    </button>
+                    {pages.map((p, i) =>
+                      p === 'ellipsis' ? (
+                        <span key={`e-${i}`} className="px-2 text-[#64748B] text-sm">
+                          …
+                        </span>
+                      ) : (
+                        <button
+                          key={p}
+                          onClick={() => setPage(p)}
+                          className="min-w-[36px] px-3 py-1.5 rounded-lg text-sm font-medium transition-colors"
+                          style={{
+                            background:
+                              p === page
+                                ? 'linear-gradient(135deg, #0066FF, #00AAFF)'
+                                : 'rgba(255,255,255,0.04)',
+                            color: p === page ? '#fff' : '#94A3B8',
+                            boxShadow: p === page ? '0 2px 8px rgba(0, 102, 255, 0.3)' : 'none',
+                          }}
+                        >
+                          {p}
+                        </button>
+                      )
+                    )}
+                    <button
+                      onClick={() => setPage(Math.min(totalPages, page + 1))}
+                      disabled={page === totalPages}
+                      className="px-3 py-1.5 rounded-lg text-white text-sm disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                      style={{ background: 'rgba(255,255,255,0.04)' }}
+                    >
+                      Next →
+                    </button>
+                  </>
+                )
+              })()}
             </div>
           )}
         </div>
