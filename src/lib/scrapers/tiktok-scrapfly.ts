@@ -53,6 +53,8 @@ export async function scrapeTikTokViaScrapfly(
     }> = []
 
     const xhrCalls = result.browserData?.xhr_call || []
+    let xhrWithItems = 0
+    let xhrParseFailed = 0
     for (const xhr of xhrCalls) {
       const respBody = xhr?.response?.body || ''
       if (!respBody.includes('itemList')) continue
@@ -60,6 +62,7 @@ export async function scrapeTikTokViaScrapfly(
       try {
         const data = JSON.parse(respBody)
         const items = data?.itemList || []
+        xhrWithItems++
         for (const item of items) {
           const stats = item?.stats
           if (stats && typeof stats.playCount === 'number') {
@@ -72,10 +75,16 @@ export async function scrapeTikTokViaScrapfly(
             })
           }
         }
-      } catch {}
+      } catch {
+        xhrParseFailed++
+      }
     }
 
+    console.log(`[tiktok] @${username}: captured ${xhrCalls.length} XHR calls, ${xhrWithItems} had itemList, ${xhrParseFailed} parse failed → ${allVideos.length} total videos before slicing`)
+
     const recentVideos = allVideos.slice(POSTS_TO_SKIP, POSTS_TO_SCRAPE)
+
+    console.log(`[tiktok] @${username}: skipped first ${Math.min(POSTS_TO_SKIP, allVideos.length)} (pinned), ${recentVideos.length} videos in final dataset`)
 
     const recentContent: ContentItem[] = recentVideos.map((video) => ({
       url: `https://www.tiktok.com/@${username}/video/${video.id}`,

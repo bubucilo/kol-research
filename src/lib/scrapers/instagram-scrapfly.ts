@@ -132,7 +132,13 @@ export async function scrapeInstagramViaScrapfly(
         return true
       })
 
-      const linksToProcess = uniqueLinks.slice(POSTS_TO_SKIP, POSTS_TO_SCRAPE)
+      const linksToProcess = uniqueLinks.slice(POSTS_TO_SCRAPE > uniqueLinks.length ? 0 : POSTS_TO_SKIP, POSTS_TO_SCRAPE)
+
+      console.log(`[instagram] @${username}: found ${uniqueLinks.length} post links in HTML (${postLinks.length - uniqueLinks.length} duplicates removed), skipping ${Math.min(POSTS_TO_SKIP, uniqueLinks.length)} pinned, scraping ${linksToProcess.length} posts`)
+
+      let scrapeSuccess = 0
+      let scrapeFailed = 0
+      let scrapeNoMeta = 0
 
       for (const postUrl of linksToProcess) {
         try {
@@ -168,10 +174,19 @@ export async function scrapeInstagramViaScrapfly(
               shares: 0,
               postedAt: null,
             })
+            scrapeSuccess++
+          } else {
+            scrapeNoMeta++
           }
-        } catch {}
+        } catch {
+          scrapeFailed++
+        }
       }
-    } catch {}
+
+      console.log(`[instagram] @${username}: scrape results — ${scrapeSuccess} succeeded, ${scrapeNoMeta} no meta tag, ${scrapeFailed} failed → ${recentContent.length} videos in final dataset`)
+    } catch (e) {
+      console.warn(`[instagram] @${username}: post link extraction failed:`, e)
+    }
 
     const sumViews = recentContent.reduce((sum, v) => sum + v.views, 0)
     const sumLikes = recentContent.reduce((sum, v) => sum + v.likes, 0)
