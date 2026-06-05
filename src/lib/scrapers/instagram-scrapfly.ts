@@ -112,7 +112,7 @@ export async function scrapeInstagramViaScrapfly(
     const recentContent: ContentItem[] = []
 
     try {
-      // Step 2: Scrape /reels page for video links (more consistent than profile grid)
+      // Step 2: Scrape /reels page for video links, fall back to profile page links
       console.log(`[instagram] @${username}: scraping /reels page for video links...`)
       const reelsResult = await scrapeWithScrapfly({
         url: reelsUrl,
@@ -132,10 +132,25 @@ export async function scrapeInstagramViaScrapfly(
       }
 
       // Also grab /p/ links from reels page (some reels are served as /p/ URLs)
-      const pMatches = reelsHtml.matchAll(/href="(\/p\/[A-Za-z0-9_-]+\/)"/g)
-      for (const match of pMatches) {
+      const pMatchesReels = reelsHtml.matchAll(/href="(\/p\/[A-Za-z0-9_-]+\/)"/g)
+      for (const match of pMatchesReels) {
         if (postLinks.length >= POSTS_TO_SCRAPE + POSTS_TO_SKIP) break
         postLinks.push(`https://www.instagram.com${match[1]}`)
+      }
+
+      // Fallback: if /reels page returned nothing, extract from profile page HTML
+      if (postLinks.length === 0) {
+        console.log(`[instagram] @${username}: /reels page returned 0 links, falling back to profile page`)
+        const pMatchesProfile = html.matchAll(/href="(\/reel\/[A-Za-z0-9_-]+\/)"/g)
+        for (const match of pMatchesProfile) {
+          if (postLinks.length >= POSTS_TO_SCRAPE + POSTS_TO_SKIP) break
+          postLinks.push(`https://www.instagram.com${match[1]}`)
+        }
+        const pMatchesProfile2 = html.matchAll(/href="(\/p\/[A-Za-z0-9_-]+\/)"/g)
+        for (const match of pMatchesProfile2) {
+          if (postLinks.length >= POSTS_TO_SCRAPE + POSTS_TO_SKIP) break
+          postLinks.push(`https://www.instagram.com${match[1]}`)
+        }
       }
 
       const seen = new Set<string>()
@@ -147,7 +162,7 @@ export async function scrapeInstagramViaScrapfly(
 
       const linksToProcess = uniqueLinks.slice(POSTS_TO_SKIP, POSTS_TO_SCRAPE + POSTS_TO_SKIP)
 
-      console.log(`[instagram] @${username}: /reels page returned ${uniqueLinks.length} unique video links, skipping ${Math.min(POSTS_TO_SKIP, uniqueLinks.length)} pinned, scraping ${linksToProcess.length} videos`)
+      console.log(`[instagram] @${username}: ${uniqueLinks.length} unique video links, skipping ${Math.min(POSTS_TO_SKIP, uniqueLinks.length)} pinned, scraping ${linksToProcess.length} videos`)
 
       let scrapeSuccess = 0
       let scrapeFailed = 0
