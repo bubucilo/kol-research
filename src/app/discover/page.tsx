@@ -62,6 +62,7 @@ export default function DiscoverPage() {
   const [filters, setFilters] = useState<FilterState>(EMPTY_FILTERS)
   const [loading, setLoading] = useState(false)
   const [copiedId, setCopiedId] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
 
   const fetchProfiles = useCallback(async () => {
     setLoading(true)
@@ -89,9 +90,15 @@ export default function DiscoverPage() {
         setProfiles(data.profiles)
         setTotal(data.total)
         setTotalPages(data.totalPages)
+        setError(null)
+      } else {
+        console.error('Discover API error:', data)
+        setError(data.message || data.error || 'Failed to load profiles')
+        setProfiles([])
+        setTotal(0)
       }
-    } catch (err) {
-      console.error('Failed to fetch profiles:', err)
+    } catch (err: any) {
+      setError(err.message || 'Network error')
     } finally {
       setLoading(false)
     }
@@ -217,6 +224,15 @@ export default function DiscoverPage() {
           matchCount={loading ? null : total}
         />
 
+        {error && (
+          <div
+            className="mb-4 p-4 rounded-xl text-sm"
+            style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', color: '#FCA5A5' }}
+          >
+            <strong>Error:</strong> {error}
+          </div>
+        )}
+
         <div className="tool-card rounded-xl p-4 mb-6">
           <div className="flex flex-col md:flex-row gap-3">
             <div className="flex-1 relative">
@@ -327,7 +343,7 @@ export default function DiscoverPage() {
                     { key: 'rateIdr', label: 'Rate (IDR)' },
                     { key: 'followers', label: 'Followers' },
                     { key: 'avgViews', label: 'Avg Views' },
-                    { key: 'engagementRate', label: 'Engagement' },
+                    { key: 'erPercent', label: 'ER %' },
                   ].map((col) => (
                     <th
                       key={col.key}

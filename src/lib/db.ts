@@ -430,21 +430,15 @@ export async function getMergedKOLs(options?: {
 
   const supabase = getClient()
 
+  const KOL_SORT_COLUMNS = new Set([
+    'updatedAt', 'importedAt', 'followers', 'rateIdr',
+    'name', 'username', 'categories', 'domisili', 'tier', 'contact', 'erPercent', 'avgViews',
+  ])
+  const safeSortBy = KOL_SORT_COLUMNS.has(sortBy) ? sortBy : 'updatedAt'
+
   let query = supabase
     .from('KOLContacts')
-    .select(
-      `
-      id, "rowNo", name, "profileUrl", platform, username, categories, followers, tier,
-      "erPercent", "avgViews", gmv, "scopeQty", "scopeOfWork", "rateIdr", remarks,
-      domisili, contact, status, "importedAt", "updatedAt",
-      ProfileLookup:ProfileLookup!ProfileLookup_platform_username_fkey(
-        "profilePicture", bio, following, "postCount",
-        "avgViews", "avgLikes", "avgComments", "avgShares", "engagementRate",
-        "lastSearchedAt", followers
-      )
-    `,
-      { count: 'exact' }
-    )
+    .select('*', { count: 'exact' })
 
   if (platform && platform !== 'all') {
     query = query.eq('platform', platform)
@@ -467,16 +461,33 @@ export async function getMergedKOLs(options?: {
     )
   }
 
-  const sortColumn = sortBy === 'lastSearchedAt' ? 'ProfileLookup.lastSearchedAt' : sortBy
-  query = query.order(sortColumn, { ascending: sortOrder === 'asc', foreignTable: 'ProfileLookup' })
-
+  query = query.order(safeSortBy, { ascending: sortOrder === 'asc' })
   query = query.range((page - 1) * pageSize, page * pageSize - 1)
 
   const { data, count, error } = await query
   if (error) throw error
 
-  const merged = (data ?? []).map((row: any) => {
-    const pl = Array.isArray(row.ProfileLookup) ? row.ProfileLookup[0] : row.ProfileLookup
+  const rows = (data ?? []) as KOLContactRow[]
+
+  let profileLookupMap = new Map<string, any>()
+  if (rows.length > 0) {
+    const orClauses = rows
+      .map((r) => `and(platform.eq.${r.platform},username.eq.${r.username})`)
+      .join(',')
+    const { data: plData, error: plErr } = await supabase
+      .from('ProfileLookup')
+      .select(
+        'platform, username, "profilePicture", bio, following, "postCount", "avgViews", "avgLikes", "avgComments", "avgShares", "engagementRate", "lastSearchedAt", followers'
+      )
+      .or(orClauses)
+    if (plErr) throw plErr
+    for (const pl of plData ?? []) {
+      profileLookupMap.set(`${pl.platform}:${pl.username}`, pl)
+    }
+  }
+
+  const merged = rows.map((row) => {
+    const pl = profileLookupMap.get(`${row.platform}:${row.username}`)
     const hasScraped = !!pl
 
     return {

@@ -53,8 +53,8 @@ export async function GET(request: NextRequest) {
       {
         success: false,
         error: 'Failed to fetch profiles',
+        message: error instanceof Error ? error.message : String(error),
         debug: {
-          message: error instanceof Error ? error.message : String(error),
           name: error instanceof Error ? error.name : typeof error,
           code: (error as any)?.code,
           meta: (error as any)?.meta,
