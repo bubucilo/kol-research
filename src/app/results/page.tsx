@@ -102,10 +102,29 @@ function ResultsContent() {
               <img
                 src={profile.profilePicture}
                 alt={profile.username}
-                className="w-20 h-20 md:w-24 md:h-24 rounded-full border-2 flex-shrink-0"
+                className="w-20 h-20 md:w-24 md:h-24 rounded-full border-2 flex-shrink-0 object-cover"
                 style={{ borderColor: 'rgba(59,130,246,0.3)' }}
+                onError={(e) => {
+                  const target = e.currentTarget
+                  target.style.display = 'none'
+                  const fallback = target.nextElementSibling as HTMLElement
+                  if (fallback) fallback.style.display = 'flex'
+                }}
               />
             )}
+            <div
+              className="w-20 h-20 md:w-24 md:h-24 rounded-full border-2 flex-shrink-0 items-center justify-center text-2xl font-bold text-white"
+              style={{
+                background:
+                  profile.platform === 'tiktok'
+                    ? 'rgba(0,170,255,0.15)'
+                    : 'rgba(236,72,153,0.15)',
+                borderColor: 'rgba(59,130,246,0.3)',
+                display: profile.profilePicture ? 'none' : 'flex',
+              }}
+            >
+              {profile.username.slice(0, 2).toUpperCase()}
+            </div>
 
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-3 mb-2">

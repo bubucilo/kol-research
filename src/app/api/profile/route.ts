@@ -4,6 +4,7 @@ import { profileUrlSchema } from '@/lib/types'
 import { ProfileError } from '@/lib/types'
 import { detectPlatform, extractUsername } from '@/lib/utils'
 import { getCachedProfile, saveProfile } from '@/lib/db'
+import { uploadAvatar } from '@/lib/storage'
 
 export const maxDuration = 120
 export const runtime = 'nodejs'
@@ -32,6 +33,23 @@ export async function POST(request: NextRequest) {
     }
 
     const profileData = await scrapeProfile(url)
+
+    if (platform && username && profileData.profilePicture) {
+      try {
+        const uploadedUrl = await uploadAvatar(
+          profileData.profilePicture,
+          profileData.platform,
+          profileData.username
+        )
+        if (uploadedUrl) {
+          profileData.profilePicture = uploadedUrl
+        } else {
+          console.warn(`[profile] Avatar upload failed for ${profileData.username}, keeping original URL`)
+        }
+      } catch (uploadErr) {
+        console.warn('[profile] Avatar upload error:', uploadErr)
+      }
+    }
 
     if (platform && username) {
       try {

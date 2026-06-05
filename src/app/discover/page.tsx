@@ -298,21 +298,29 @@ export default function DiscoverPage() {
                             <img
                               src={profile.profilePicture}
                               alt={profile.username}
-                              className="w-9 h-9 rounded-full flex-shrink-0"
+                              className="w-9 h-9 rounded-full flex-shrink-0 object-cover"
                               style={{ border: '1px solid rgba(255,255,255,0.08)' }}
+                              onError={(e) => {
+                                const target = e.currentTarget
+                                target.style.display = 'none'
+                                const fallback = target.nextElementSibling as HTMLElement
+                                if (fallback) fallback.style.display = 'flex'
+                              }}
                             />
-                          ) : (
-                            <div
-                              className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
-                              style={{ background: 'rgba(255,255,255,0.04)' }}
-                            >
-                              {profile.platform === 'tiktok' ? (
-                                <Music className="h-4 w-4 text-[#00AAFF]" />
-                              ) : (
-                                <Camera className="h-4 w-4 text-[#F472B6]" />
-                              )}
-                            </div>
-                          )}
+                          ) : null}
+                          <div
+                            className="w-9 h-9 rounded-full flex-shrink-0 items-center justify-center text-xs font-bold text-white"
+                            style={{
+                              background:
+                                profile.platform === 'tiktok'
+                                  ? 'rgba(0,170,255,0.15)'
+                                  : 'rgba(236,72,153,0.15)',
+                              border: '1px solid rgba(255,255,255,0.08)',
+                              display: profile.profilePicture ? 'none' : 'flex',
+                            }}
+                          >
+                            {profile.username.slice(0, 2).toUpperCase()}
+                          </div>
                           <div className="min-w-0">
                             <div className="flex items-center gap-2">
                               <span className="text-white font-medium">
