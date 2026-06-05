@@ -51,7 +51,11 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    if (platform && username) {
+    // Skip DB save if scrape returned no video data — don't cache incomplete results
+    // (e.g. Apify returns profile metadata but 0 videos for some accounts)
+    const shouldSave = profileData.recentContent.length > 0
+
+    if (platform && username && shouldSave) {
       try {
         await saveProfile(profileData)
       } catch (dbError) {

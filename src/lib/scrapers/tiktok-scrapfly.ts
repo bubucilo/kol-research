@@ -10,12 +10,13 @@ export async function scrapeTikTokViaScrapfly(
   const url = `https://www.tiktok.com/@${username}`
 
   try {
+    // Use SG proxy — 'us' fails to trigger post/item_list XHR for Indonesian accounts
     const result = await scrapeWithScrapfly({
       url,
       asp: true,
       renderJs: true,
-      country: 'us',
-      renderingWait: 5000,
+      country: 'sg',
+      renderingWait: 8000,
       autoScroll: true,
     })
 

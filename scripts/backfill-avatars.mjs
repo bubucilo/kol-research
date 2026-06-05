@@ -88,9 +88,9 @@ async function uploadToStorage(remoteUrl, platform, username) {
 async function processRow(row) {
   console.log(`\n[${row.platform}] @${row.username} (old URL: ${row.profilePicture?.slice(0, 60)}...)`)
 
-  // Only fix Instagram for now (TikTok URLs are still working in browser)
-  if (row.platform !== 'instagram') {
-    console.log('  skip: only Instagram URLs are currently broken in browser')
+  // Skip if already on Supabase Storage
+  if (row.profilePicture?.includes('supabase.co/storage')) {
+    console.log('  skip: already on Supabase Storage')
     return
   }
 
