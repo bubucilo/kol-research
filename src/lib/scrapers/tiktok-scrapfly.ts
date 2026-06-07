@@ -130,6 +130,22 @@ export async function scrapeTikTokViaScrapfly(
       console.warn(`[tiktok] @${username}: engagement capped — raw=${rawEngagement}%, likes=${sumLikes}, comments=${sumComments}, shares=${sumShares}, views=${sumViews}`)
     }
 
+    // Guard: if all metrics are 0/null and no content was captured, the scrape
+    // effectively failed even though Scrapfly returned 200. This often happens
+    // with region-restricted accounts, age-gated profiles, or when TikTok's
+    // page structure has changed. Throw so the Apify fallback gets a chance.
+    if (
+      followers === 0 &&
+      videoCount === 0 &&
+      !profilePicture &&
+      recentContent.length === 0
+    ) {
+      throw new ProfileError(
+        `Could not extract data for @${username}. The account may be region-restricted, age-gated, or the page structure has changed.`,
+        'SCRAPING_FAILED'
+      )
+    }
+
     return {
       platform: 'tiktok',
       username,
