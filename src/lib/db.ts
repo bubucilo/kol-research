@@ -454,60 +454,64 @@ export async function getMergedKOLs(options?: {
     ? sortBy
     : 'updatedAt'
 
-  // Fetch ALL matching KOLs (we expand rates[] into rows in JS, then paginate the expanded set)
-  // For datasets <100K rows this is fine; switch to SQL function if it grows.
-  let query = supabase
-    .from('KOLContacts')
-    .select('*')
-
-  if (platform && platform !== 'all') {
-    query = query.eq('platform', platform)
-  }
-  if (category) {
-    query = query.ilike('categories', `%${category}%`)
-  }
-  if (domisili) {
-    query = query.ilike('domisili', `%${domisili}%`)
-  }
-  if (hasContact) {
-    query = query.not('contact', 'is', null).neq('contact', '')
-  }
-  if (hasRate) {
-    query = query.not('primaryRate', 'is', null).gt('primaryRate', 0)
-  }
-  if (search) {
-    query = query.or(
-      `username.ilike.%${search}%,name.ilike.%${search}%,contact.ilike.%${search}%,domisili.ilike.%${search}%`
-    )
+  // Fetch ALL matching KOLs in chunks of 1000 (PostgREST max-rows cap).
+  // We expand rates[] into rows in JS, then paginate the expanded set,
+  // so we need the full dataset to do proper per-row filtering/sorting.
+  const buildBaseQuery = () => {
+    let q = supabase.from('KOLContacts').select('*')
+    if (platform && platform !== 'all') q = q.eq('platform', platform)
+    if (category) q = q.ilike('categories', `%${category}%`)
+    if (domisili) q = q.ilike('domisili', `%${domisili}%`)
+    if (hasContact) q = q.not('contact', 'is', null).neq('contact', '')
+    if (hasRate) q = q.not('primaryRate', 'is', null).gt('primaryRate', 0)
+    if (search) {
+      q = q.or(
+        `username.ilike.%${search}%,name.ilike.%${search}%,contact.ilike.%${search}%,domisili.ilike.%${search}%`
+      )
+    }
+    return q
   }
 
-  const { data, error } = await query
-  if (error) throw error
+  const KOL_CHUNK = 1000
+  const rows: KOLContactRow[] = []
+  let from = 0
+  // Hard cap to prevent runaway queries
+  for (let safety = 0; safety < 50; safety++) {
+    const { data, error } = await buildBaseQuery().range(from, from + KOL_CHUNK - 1)
+    if (error) throw error
+    if (!data || data.length === 0) break
+    rows.push(...(data as KOLContactRow[]))
+    if (data.length < KOL_CHUNK) break
+    from += KOL_CHUNK
+  }
 
-  const rows = (data ?? []) as KOLContactRow[]
-
-  // Batch-fetch fresh ProfileLookup rows (same TTL filter as before)
+  // Batch-fetch fresh ProfileLookup rows in sub-chunks of 100.
+  // PostgREST URL length cap (~8KB) means we can't OR-in 1000+ (platform,username) pairs at once.
   let profileLookupMap = new Map<string, any>()
   if (rows.length > 0) {
     const cutoff = new Date()
     cutoff.setDate(cutoff.getDate() - CACHE_TTL_DAYS)
     const cutoffIso = cutoff.toISOString()
 
-    const orClauses = rows
-      .map(
-        (r) =>
-          `and(platform.eq.${r.platform},username.eq.${r.username},lastSearchedAt.gte.${cutoffIso})`
-      )
-      .join(',')
-    const { data: plData, error: plErr } = await supabase
-      .from('ProfileLookup')
-      .select(
-        'platform, username, "profilePicture", bio, following, "postCount", "avgViews", "avgLikes", "avgComments", "avgShares", "engagementRate", "lastSearchedAt", followers'
-      )
-      .or(orClauses)
-    if (plErr) throw plErr
-    for (const pl of plData ?? []) {
-      profileLookupMap.set(`${pl.platform}:${pl.username}`, pl)
+    const PL_BATCH = 100
+    for (let i = 0; i < rows.length; i += PL_BATCH) {
+      const chunk = rows.slice(i, i + PL_BATCH)
+      const orClauses = chunk
+        .map(
+          (r) =>
+            `and(platform.eq.${r.platform},username.eq.${r.username},lastSearchedAt.gte.${cutoffIso})`
+        )
+        .join(',')
+      const { data: plData, error: plErr } = await supabase
+        .from('ProfileLookup')
+        .select(
+          'platform, username, "profilePicture", bio, following, "postCount", "avgViews", "avgLikes", "avgComments", "avgShares", "engagementRate", "lastSearchedAt", followers'
+        )
+        .or(orClauses)
+      if (plErr) throw plErr
+      for (const pl of plData ?? []) {
+        profileLookupMap.set(`${pl.platform}:${pl.username}`, pl)
+      }
     }
   }
 
