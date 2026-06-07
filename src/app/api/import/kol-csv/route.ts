@@ -186,9 +186,44 @@ export async function POST(request: NextRequest) {
         batch.push({ ...record, _rowNum: rowNum })
 
         if (batch.length >= BATCH_SIZE || i === rows.length - 1) {
+          // Group rows by (platform, username) so multiple rows for the same KOL
+          // (e.g. 5 different scopes) collapse into a single record with rates[]
+          // containing all entries. Without this, the batch insert would hit
+          // the unique constraint and silently drop all but the first row.
+          const grouped = new Map<string, any>()
+          for (const r of batch) {
+            const key = `${r.platform}:${r.username}`
+            const existing = grouped.get(key)
+            if (!existing) {
+              grouped.set(key, {
+                ...r,
+                rates: [...r.rates],
+                _rowNums: [r._rowNum],
+              })
+            } else {
+              // Append this row's rate(s) to the grouped record
+              existing.rates.push(...r.rates)
+              existing._rowNums.push(r._rowNum)
+              // For non-rate fields, prefer the first non-null value we see
+              for (const field of [
+                'name', 'contact', 'categories', 'domisili', 'remarks',
+                'tier', 'gmv', 'rowNo', 'profileUrl',
+              ] as const) {
+                if ((existing[field] == null || existing[field] === '') && r[field] != null && r[field] !== '') {
+                  existing[field] = r[field]
+                }
+              }
+            }
+          }
+          // Recompute primaryRate from merged rates
+          for (const rec of grouped.values()) {
+            rec.primaryRate = pickPrimaryRate(rec.rates)
+          }
+          const dedupedBatch = Array.from(grouped.values())
+
           // Find existing rows in this batch to apply merge semantics:
           // only update fields that are empty/missing in existing rows.
-          const pairs = batch
+          const pairs = dedupedBatch
             .map((r) => `and(platform.eq.${r.platform},username.eq.${r.username})`)
             .join(',')
           const { data: existing } = await supabase
@@ -206,20 +241,21 @@ export async function POST(request: NextRequest) {
           const toInsert: any[] = []
           const toUpdate: { id: string; fields: any; rowNum: number }[] = []
 
-          for (const r of batch) {
+          for (const r of dedupedBatch) {
             const key = `${r.platform}:${r.username}`
             const ex = existingMap.get(key)
-            const rowNum = r._rowNum
+            // Use the first row number for reporting; the rest were merged into this row
+            const rowNum = r._rowNums[0]
 
             if (!ex) {
-              const { _rowNum, ...insertRecord } = r
+              const { _rowNum: _1, _rowNums: _2, ...insertRecord } = r
               toInsert.push(insertRecord)
               continue
             }
 
             // Overwrite mode: replace all fields from CSV (except _rowNum marker)
             if (overwrite) {
-              const { _rowNum, ...fields } = r
+              const { _rowNum: _1, _rowNums: _2, ...fields } = r
               toUpdate.push({ id: ex.id, fields, rowNum })
               continue
             }
