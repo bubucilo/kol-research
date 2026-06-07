@@ -49,6 +49,11 @@ export async function scrapeInstagramViaScrapfly(
     const followingMatch = html.match(/"edge_follow":\{"count":(\d+)\}/)
     const postsMatch = html.match(/"edge_owner_to_timeline_media":\{"count":(\d+)\}/)
     const bioMatch = html.match(/"biography":"([^"]*)"/)
+    // Prefer og:image (480x480 typical) over profile_pic_url_hd (150x150).
+    // The "HD" in profile_pic_url_hd is misleading — it's still Instagram's small
+    // mobile-size variant, not high-res. og:image is the web-share variant and
+    // is what we'd want for display.
+    const ogImageMatch = html.match(/<meta property="og:image" content="([^"]*)"/)
     const picMatch =
       html.match(/"profile_pic_url_hd":"([^"]*)"/) ||
       html.match(/"profile_pic_url":"([^"]*)"/)
@@ -57,7 +62,12 @@ export async function scrapeInstagramViaScrapfly(
     if (followingMatch) following = parseInt(followingMatch[1])
     if (postsMatch) postCount = parseInt(postsMatch[1])
     if (bioMatch) bio = bioMatch[1].replace(/\\n/g, '\n').replace(/\\"/g, '"')
-    if (picMatch) profilePicture = picMatch[1].replace(/\\u0026/g, '&')
+    // Prefer og:image — it's the larger variant
+    if (ogImageMatch) {
+      profilePicture = ogImageMatch[1].replace(/\\u0026/g, '&')
+    } else if (picMatch) {
+      profilePicture = picMatch[1].replace(/\\u0026/g, '&')
+    }
 
     if (followers === 0) {
       const metaDesc = html.match(/<meta name="description" content="([^"]*)"/)
@@ -86,11 +96,6 @@ export async function scrapeInstagramViaScrapfly(
           else postCount = parseInt(num.replace(/,/g, '')) || 0
         }
       }
-    }
-
-    if (!profilePicture) {
-      const ogImage = html.match(/<meta property="og:image" content="([^"]*)"/)
-      if (ogImage) profilePicture = ogImage[1].replace(/\\u0026/g, '&')
     }
 
     if (!bio) {
