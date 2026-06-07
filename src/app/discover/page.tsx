@@ -60,6 +60,10 @@ interface MergedProfile {
   postCount: number | null
   lastSearchedAt: string | null
   hasScrapedData: boolean
+  // Expanded rate fields (one row per (KOL, rate))
+  rateScope: string | null
+  rateQty: number | null
+  rateRate: number | null
 }
 
 export default function DiscoverPage() {
@@ -95,6 +99,11 @@ export default function DiscoverPage() {
       if (filters.viewRanges.length) params.set('viewRanges', filters.viewRanges.join(','))
       if (filters.likeRanges.length) params.set('likeRanges', filters.likeRanges.join(','))
       if (filters.erRanges.length) params.set('erRanges', filters.erRanges.join(','))
+      if (filters.category) params.set('category', filters.category)
+      if (filters.domisili) params.set('domisili', filters.domisili)
+      if (filters.minRate) params.set('minRate', filters.minRate)
+      if (filters.maxRate) params.set('maxRate', filters.maxRate)
+      if (filters.scope) params.set('scope', filters.scope)
       if (dataFilter === 'scraped') params.set('scrapedOnly', 'true')
       if (dataFilter === 'unscraped') params.set('unscrapedOnly', 'true')
 
@@ -155,13 +164,14 @@ export default function DiscoverPage() {
   }
 
   const handleCopy = (profile: MergedProfile) => {
-    const rateText = profile.rates && profile.rates.length > 0
-      ? profile.rates.map((r) => r.rate ? `Rp ${r.rate.toLocaleString('id-ID')}` : '').filter(Boolean).join(' / ')
+    const rateText = profile.rateRate
+      ? `Rp ${profile.rateRate.toLocaleString('id-ID')}`
       : ''
     const data = [
       profile.platform,
       profile.username,
       profile.contact || '',
+      profile.rateScope || '',
       rateText,
       profile.followers || 0,
       profile.avgViews ? Math.round(profile.avgViews) : 0,
@@ -175,16 +185,16 @@ export default function DiscoverPage() {
   }
 
   const handleCopyAll = () => {
-    const header = 'Platform\tUsername\tContact\tScopes\tPrimary Rate (IDR)\tFollowers\tAvg Views\tEngagement'
+    const header = 'Platform\tUsername\tContact\tScope\tRate (IDR)\tNiche\tLocation\tFollowers\tAvg Views\tEngagement'
     const rows = profiles.map((p) => {
-      const scopes = (p.rates || []).map((r) => r.scope).filter(Boolean).join(' + ')
-      const rate = p.primaryRate ?? ''
       return [
         p.platform,
         p.username,
         p.contact || '',
-        scopes,
-        rate,
+        p.rateScope || '',
+        p.rateRate ?? '',
+        p.categories || '',
+        p.domisili || '',
         p.followers || 0,
         p.avgViews ? Math.round(p.avgViews) : 0,
         p.engagementRate ? p.engagementRate.toFixed(2) + '%' : '-',
@@ -381,10 +391,16 @@ export default function DiscoverPage() {
                     Contact
                   </th>
                   <th className="text-left p-4 text-xs font-semibold uppercase tracking-wider text-[#64748B]">
-                    Niche / Location
+                    Niche
+                  </th>
+                  <th className="text-right p-4 text-xs font-semibold uppercase tracking-wider text-[#64748B] cursor-pointer hover:text-white transition-colors" onClick={() => handleSort('rate')}>
+                    Rate (IDR)
+                    <SortIcon column="rate" />
+                  </th>
+                  <th className="text-left p-4 text-xs font-semibold uppercase tracking-wider text-[#64748B]">
+                    Scope
                   </th>
                   {[
-                    { key: 'primaryRate', label: 'Rate (IDR)' },
                     { key: 'followers', label: 'Followers' },
                     { key: 'avgViews', label: 'Avg Views' },
                     { key: 'erPercent', label: 'ER %' },
@@ -398,6 +414,9 @@ export default function DiscoverPage() {
                       <SortIcon column={col.key} />
                     </th>
                   ))}
+                  <th className="text-left p-4 text-xs font-semibold uppercase tracking-wider text-[#64748B]">
+                    Location
+                  </th>
                   <th className="text-center p-4 text-xs font-semibold uppercase tracking-wider text-[#64748B]">
                     Source
                   </th>
@@ -409,13 +428,13 @@ export default function DiscoverPage() {
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan={8} className="p-12 text-center text-[#64748B]">
+                    <td colSpan={10} className="p-12 text-center text-[#64748B]">
                       Loading…
                     </td>
                   </tr>
                 ) : profiles.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="p-12 text-center">
+                    <td colSpan={10} className="p-12 text-center">
                       <div className="text-[#94A3B8] mb-2">No KOLs yet</div>
                       <a
                         href="/import"
@@ -505,39 +524,42 @@ export default function DiscoverPage() {
                       </td>
 
                       <td className="p-4">
-                        <div className="space-y-0.5">
-                          {profile.categories && (
-                            <div className="inline-flex items-center gap-1 text-xs text-white/70">
-                              <Tag className="w-3 h-3 text-[#3B82F6]" />
-                              <span className="truncate max-w-[140px]">{profile.categories}</span>
-                            </div>
-                          )}
-                          {profile.domisili && (
-                            <div className="inline-flex items-center gap-1 text-xs text-white/50">
-                              <MapPin className="w-3 h-3" />
-                              <span className="truncate max-w-[140px]">{profile.domisili}</span>
-                            </div>
-                          )}
-                        </div>
+                        {profile.categories ? (
+                          <div className="inline-flex items-center gap-1 text-xs text-white/70">
+                            <Tag className="w-3 h-3 text-[#3B82F6]" />
+                            <span className="truncate max-w-[140px]">{profile.categories}</span>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-white/30">—</span>
+                        )}
                       </td>
 
                       <td className="p-4 text-right">
-                        {profile.primaryRate ? (
+                        {profile.rateRate ? (
                           <div className="inline-flex flex-col items-end gap-0.5">
                             <span className="inline-flex items-center gap-1 text-sm font-semibold text-white">
                               <DollarSign className="w-3.5 h-3.5 text-[#FBBF24]" />
-                              {formatRate(profile.primaryRate)}
+                              {formatRate(profile.rateRate)}
                             </span>
-                            {profile.rates && profile.rates.length > 1 && (
-                              <span
-                                className="text-[10px] font-medium px-1.5 py-0.5 rounded"
-                                style={{ background: 'rgba(251, 191, 36, 0.15)', color: '#FBBF24' }}
-                                title={profile.rates.map((r) => `${r.scope || '(no scope)'}: Rp ${(r.rate || 0).toLocaleString('id-ID')}`).join('\n')}
-                              >
-                                +{profile.rates.length - 1} more
+                            {profile.rateQty && profile.rateQty > 1 && (
+                              <span className="text-[10px] text-white/40">
+                                ×{profile.rateQty}
                               </span>
                             )}
                           </div>
+                        ) : (
+                          <span className="text-xs text-white/30">—</span>
+                        )}
+                      </td>
+
+                      <td className="p-4">
+                        {profile.rateScope ? (
+                          <span
+                            className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded font-medium"
+                            style={{ background: 'rgba(167,139,250,0.12)', color: '#A78BFA' }}
+                          >
+                            {profile.rateScope}
+                          </span>
                         ) : (
                           <span className="text-xs text-white/30">—</span>
                         )}
@@ -570,6 +592,17 @@ export default function DiscoverPage() {
                             ? formatEngagementRate(profile.engagementRate)
                             : '-'}
                         </span>
+                      </td>
+
+                      <td className="p-4">
+                        {profile.domisili ? (
+                          <div className="inline-flex items-center gap-1 text-xs text-white/70">
+                            <MapPin className="w-3 h-3 text-[#94A3B8]" />
+                            <span className="truncate max-w-[140px]">{profile.domisili}</span>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-white/30">—</span>
+                        )}
                       </td>
 
                       <td className="p-4 text-center">

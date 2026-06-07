@@ -25,6 +25,13 @@ export async function GET(request: NextRequest) {
     const hasRate = searchParams.get('hasRate') === 'true'
     const scrapedOnly = searchParams.get('scrapedOnly') === 'true'
     const unscrapedOnly = searchParams.get('unscrapedOnly') === 'true'
+    const minRate = searchParams.get('minRate')
+      ? parseInt(searchParams.get('minRate') as string)
+      : undefined
+    const maxRate = searchParams.get('maxRate')
+      ? parseInt(searchParams.get('maxRate') as string)
+      : undefined
+    const scope = searchParams.get('scope') || undefined
 
     const result = await getMergedKOLs({
       platform,
@@ -32,32 +39,34 @@ export async function GET(request: NextRequest) {
       sortBy,
       sortOrder,
       page: 1,
-      pageSize: 10000,
+      pageSize: 50000,
       category,
       domisili,
       hasContact,
       hasRate,
       scrapedOnly,
       unscrapedOnly,
+      minRate,
+      maxRate,
+      scope,
     })
 
     const headers = [
       'Platform',
       'Username',
       'Name',
+      'Scope',
+      'Rate (IDR)',
+      'Rate Qty',
+      'Niche / Categories',
+      'Location',
+      'Contact',
       'Followers',
       'Tier',
       'ER %',
       'Avg Views',
       'Avg Likes',
       'Engagement Rate %',
-      'Primary Rate (IDR)',
-      'Primary Scope',
-      'All Rates (IDR)',
-      'All Scopes',
-      'Contact',
-      'Categories',
-      'Domisili',
       'Remarks',
       'Status',
       'Profile URL',
@@ -65,39 +74,28 @@ export async function GET(request: NextRequest) {
       'Data Source',
     ]
 
-    const rows = result.profiles.map((p: any) => {
-      const allRates = (p.rates || [])
-        .map((r: any) => r.rate)
-        .filter((n: number) => n > 0)
-        .join(' | ')
-      const allScopes = (p.rates || [])
-        .map((r: any) => r.scope)
-        .filter(Boolean)
-        .join(' | ')
-      return [
-        p.platform,
-        p.username,
-        p.name || '',
-        p.followers || 0,
-        p.tier || '',
-        (p.engagementRate || 0).toFixed(2),
-        Math.round(p.avgViews || 0),
-        Math.round(p.avgLikes || 0),
-        (p.engagementRate || 0).toFixed(2),
-        p.primaryRate || '',
-        p.primaryScope || '',
-        allRates,
-        allScopes,
-        p.contact || '',
-        p.categories || '',
-        p.domisili || '',
-        p.remarks || '',
-        p.status || '',
-        p.profileUrl,
-        p.lastSearchedAt ? new Date(p.lastSearchedAt).toISOString().split('T')[0] : '',
-        p.hasScrapedData ? 'live' : 'csv',
-      ]
-    })
+    const rows = result.profiles.map((p: any) => [
+      p.platform,
+      p.username,
+      p.name || '',
+      p.rateScope || '',
+      p.rateRate || '',
+      p.rateQty || '',
+      p.categories || '',
+      p.domisili || '',
+      p.contact || '',
+      p.followers || 0,
+      p.tier || '',
+      (p.engagementRate || 0).toFixed(2),
+      Math.round(p.avgViews || 0),
+      Math.round(p.avgLikes || 0),
+      (p.engagementRate || 0).toFixed(2),
+      p.remarks || '',
+      p.status || '',
+      p.profileUrl,
+      p.lastSearchedAt ? new Date(p.lastSearchedAt).toISOString().split('T')[0] : '',
+      p.hasScrapedData ? 'live' : 'csv',
+    ])
 
     const csv = [headers.join(','), ...rows.map((r: any[]) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(','))].join('\n')
 

@@ -27,6 +27,13 @@ export async function GET(request: NextRequest) {
     const hasRate = searchParams.get('hasRate') === 'true'
     const scrapedOnly = searchParams.get('scrapedOnly') === 'true'
     const unscrapedOnly = searchParams.get('unscrapedOnly') === 'true'
+    const minRate = searchParams.get('minRate')
+      ? parseInt(searchParams.get('minRate') as string)
+      : undefined
+    const maxRate = searchParams.get('maxRate')
+      ? parseInt(searchParams.get('maxRate') as string)
+      : undefined
+    const scope = searchParams.get('scope') || undefined
 
     const result = await getMergedKOLs({
       platform,
@@ -41,6 +48,9 @@ export async function GET(request: NextRequest) {
       hasRate,
       scrapedOnly,
       unscrapedOnly,
+      minRate,
+      maxRate,
+      scope,
     })
 
     return NextResponse.json({

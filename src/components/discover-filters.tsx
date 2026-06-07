@@ -1,6 +1,6 @@
 'use client'
 
-import { ChevronDown, Filter, X } from 'lucide-react'
+import { ChevronDown, Filter, X, Tag, MapPin, DollarSign, ListChecks } from 'lucide-react'
 
 export type RangeKey = string
 
@@ -10,6 +10,11 @@ export type FilterState = {
   viewRanges: RangeKey[]
   likeRanges: RangeKey[]
   erRanges: RangeKey[]
+  category: string
+  domisili: string
+  minRate: string
+  maxRate: string
+  scope: string
 }
 
 export const EMPTY_FILTERS: FilterState = {
@@ -18,6 +23,11 @@ export const EMPTY_FILTERS: FilterState = {
   viewRanges: [],
   likeRanges: [],
   erRanges: [],
+  category: '',
+  domisili: '',
+  minRate: '',
+  maxRate: '',
+  scope: '',
 }
 
 type Bucket = { key: string; label: string; min: number | null; max: number | null }
@@ -66,7 +76,7 @@ type Group = {
   buckets: Bucket[]
 }
 
-const GROUPS: Group[] = [
+const RANGE_GROUPS: Group[] = [
   { field: 'followerRanges', label: 'Followers',  buckets: FOLLOWER_BUCKETS },
   { field: 'postRanges',     label: 'Posts',      buckets: POST_BUCKETS },
   { field: 'viewRanges',     label: 'Avg Views',  buckets: VIEW_BUCKETS },
@@ -82,15 +92,22 @@ type Props = {
 }
 
 export function DiscoverFilters({ state, onChange, total, matchCount }: Props) {
-  const activeCount =
+  const rangeActiveCount =
     state.followerRanges.length +
     state.postRanges.length +
     state.viewRanges.length +
     state.likeRanges.length +
     state.erRanges.length
 
-  const allActive = activeCount > 0
-  const isFiltered = allActive
+  const crmActiveCount =
+    (state.category ? 1 : 0) +
+    (state.domisili ? 1 : 0) +
+    (state.minRate ? 1 : 0) +
+    (state.maxRate ? 1 : 0) +
+    (state.scope ? 1 : 0)
+
+  const activeCount = rangeActiveCount + crmActiveCount
+  const isFiltered = activeCount > 0
 
   const toggle = (field: Group['field'], key: string) => {
     const current = state[field]
@@ -102,6 +119,10 @@ export function DiscoverFilters({ state, onChange, total, matchCount }: Props) {
 
   const selectAllInGroup = (field: Group['field']) => {
     onChange({ ...state, [field]: [] })
+  }
+
+  const setField = (field: keyof FilterState, value: string) => {
+    onChange({ ...state, [field]: value })
   }
 
   const clearAll = () => onChange(EMPTY_FILTERS)
@@ -130,7 +151,7 @@ export function DiscoverFilters({ state, onChange, total, matchCount }: Props) {
             <span className="text-xs text-[#64748B]">
               {isFiltered
                 ? `· ${matchCount.toLocaleString()} of ${total.toLocaleString()} match`
-                : `· ${total.toLocaleString()} profile${total === 1 ? '' : 's'}`}
+                : `· ${total.toLocaleString()} row${total === 1 ? '' : 's'}`}
             </span>
           )}
         </div>
@@ -153,70 +174,162 @@ export function DiscoverFilters({ state, onChange, total, matchCount }: Props) {
         </div>
       </summary>
 
-      <div className="px-4 py-4 border-t" style={{ borderColor: 'rgba(255,255,255,0.05)' }}>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-          {GROUPS.map((group) => {
-            const selected = state[group.field]
-            return (
-              <div key={group.field}>
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-[#94A3B8]">
-                    {group.label}
-                  </span>
-                  {selected.length > 0 && (
-                    <button
-                      onClick={() => selectAllInGroup(group.field)}
-                      className="text-[10px] text-[#3B82F6] hover:text-[#60A5FA] font-semibold"
-                    >
-                      All
-                    </button>
-                  )}
-                </div>
-                <div className="space-y-1.5">
-                  <label
-                    className="flex items-center gap-2 px-2 py-1.5 rounded-md cursor-pointer transition-colors"
-                    style={{
-                      background: selected.length === 0 ? 'rgba(59,130,246,0.08)' : 'transparent',
-                    }}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={selected.length === 0}
-                      onChange={() => selectAllInGroup(group.field)}
-                      className="h-3.5 w-3.5 rounded border-[rgba(255,255,255,0.15)] accent-[#3B82F6] cursor-pointer"
-                    />
-                    <span className={`text-xs ${selected.length === 0 ? 'text-white font-semibold' : 'text-[#94A3B8]'}`}>
-                      All
+      <div className="border-t" style={{ borderColor: 'rgba(255,255,255,0.05)' }}>
+        {/* Range filters (existing) */}
+        <div className="px-4 py-4">
+          <div className="text-[10px] font-bold uppercase tracking-wider text-[#64748B] mb-3">
+            Engagement Metrics
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+            {RANGE_GROUPS.map((group) => {
+              const selected = state[group.field]
+              return (
+                <div key={group.field}>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-[#94A3B8]">
+                      {group.label}
                     </span>
-                  </label>
-                  {group.buckets.map((bucket) => {
-                    const isChecked = selected.includes(bucket.key)
-                    return (
-                      <label
-                        key={bucket.key}
-                        className="flex items-center gap-2 px-2 py-1.5 rounded-md cursor-pointer transition-colors"
-                        style={{
-                          background: isChecked ? 'rgba(0,170,255,0.1)' : 'transparent',
-                        }}
+                    {selected.length > 0 && (
+                      <button
+                        onClick={() => selectAllInGroup(group.field)}
+                        className="text-[10px] text-[#3B82F6] hover:text-[#60A5FA] font-semibold"
                       >
-                        <input
-                          type="checkbox"
-                          checked={isChecked}
-                          onChange={() => toggle(group.field, bucket.key)}
-                          className="h-3.5 w-3.5 rounded border-[rgba(255,255,255,0.15)] accent-[#3B82F6] cursor-pointer"
-                        />
-                        <span className={`text-xs ${isChecked ? 'text-white' : 'text-[#94A3B8]'}`}>
-                          {bucket.label}
-                        </span>
-                      </label>
-                    )
-                  })}
+                        All
+                      </button>
+                    )}
+                  </div>
+                  <div className="space-y-1.5">
+                    <label
+                      className="flex items-center gap-2 px-2 py-1.5 rounded-md cursor-pointer transition-colors"
+                      style={{
+                        background: selected.length === 0 ? 'rgba(59,130,246,0.08)' : 'transparent',
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selected.length === 0}
+                        onChange={() => selectAllInGroup(group.field)}
+                        className="h-3.5 w-3.5 rounded border-[rgba(255,255,255,0.15)] accent-[#3B82F6] cursor-pointer"
+                      />
+                      <span className={`text-xs ${selected.length === 0 ? 'text-white font-semibold' : 'text-[#94A3B8]'}`}>
+                        All
+                      </span>
+                    </label>
+                    {group.buckets.map((bucket) => {
+                      const isChecked = selected.includes(bucket.key)
+                      return (
+                        <label
+                          key={bucket.key}
+                          className="flex items-center gap-2 px-2 py-1.5 rounded-md cursor-pointer transition-colors"
+                          style={{
+                            background: isChecked ? 'rgba(0,170,255,0.1)' : 'transparent',
+                          }}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={() => toggle(group.field, bucket.key)}
+                            className="h-3.5 w-3.5 rounded border-[rgba(255,255,255,0.15)] accent-[#3B82F6] cursor-pointer"
+                          />
+                          <span className={`text-xs ${isChecked ? 'text-white' : 'text-[#94A3B8]'}`}>
+                            {bucket.label}
+                          </span>
+                        </label>
+                      )
+                    })}
+                  </div>
                 </div>
+              )
+            })}
+          </div>
+        </div>
+
+        {/* CRM filters (new) */}
+        <div
+          className="px-4 py-4 border-t"
+          style={{ borderColor: 'rgba(255,255,255,0.05)' }}
+        >
+          <div className="text-[10px] font-bold uppercase tracking-wider text-[#64748B] mb-3">
+            CRM Data
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <TextField
+              icon={Tag}
+              label="Category / Niche"
+              value={state.category}
+              onChange={(v) => setField('category', v)}
+              placeholder="Fashion, Lifestyle…"
+            />
+            <TextField
+              icon={MapPin}
+              label="Location"
+              value={state.domisili}
+              onChange={(v) => setField('domisili', v)}
+              placeholder="Jakarta, Bandung…"
+            />
+            <TextField
+              icon={ListChecks}
+              label="Scope"
+              value={state.scope}
+              onChange={(v) => setField('scope', v)}
+              placeholder="IG Reels, TikTok Video…"
+            />
+            <div>
+              <label className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-[#94A3B8] mb-2">
+                <DollarSign className="w-3.5 h-3.5" />
+                Rate (IDR)
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  value={state.minRate}
+                  onChange={(e) => setField('minRate', e.target.value)}
+                  placeholder="Min"
+                  className="w-full px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white text-sm placeholder:text-white/30 focus:outline-none focus:border-[#3B82F6]"
+                />
+                <span className="text-white/40 text-xs">–</span>
+                <input
+                  type="number"
+                  value={state.maxRate}
+                  onChange={(e) => setField('maxRate', e.target.value)}
+                  placeholder="Max"
+                  className="w-full px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white text-sm placeholder:text-white/30 focus:outline-none focus:border-[#3B82F6]"
+                />
               </div>
-            )
-          })}
+            </div>
+          </div>
         </div>
       </div>
     </details>
+  )
+}
+
+function TextField({
+  icon: Icon,
+  label,
+  value,
+  onChange,
+  placeholder,
+}: {
+  icon: any
+  label: string
+  value: string
+  onChange: (v: string) => void
+  placeholder?: string
+}) {
+  return (
+    <div>
+      <label className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-[#94A3B8] mb-2">
+        <Icon className="w-3.5 h-3.5" />
+        {label}
+      </label>
+      <input
+        type="text"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        className="w-full px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white text-sm placeholder:text-white/30 focus:outline-none focus:border-[#3B82F6]"
+      />
+    </div>
   )
 }

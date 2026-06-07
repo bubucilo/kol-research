@@ -417,6 +417,9 @@ export async function getMergedKOLs(options?: {
   hasRate?: boolean
   scrapedOnly?: boolean
   unscrapedOnly?: boolean
+  minRate?: number
+  maxRate?: number
+  scope?: string
 }) {
   const {
     platform,
@@ -431,19 +434,31 @@ export async function getMergedKOLs(options?: {
     hasRate,
     scrapedOnly,
     unscrapedOnly,
+    minRate,
+    maxRate,
+    scope,
   } = options || {}
 
   const supabase = getClient()
 
+  // KOL-level sort columns (sort applies at KOL identity level, then rates within a KOL stay together)
   const KOL_SORT_COLUMNS = new Set([
-    'updatedAt', 'importedAt', 'followers', 'primaryRate',
+    'updatedAt', 'importedAt', 'followers',
     'name', 'username', 'categories', 'domisili', 'tier', 'contact', 'erPercent', 'avgViews',
   ])
-  const safeSortBy = KOL_SORT_COLUMNS.has(sortBy) ? sortBy : 'updatedAt'
+  // Rate-level sort columns (sort applies at the rate-row level)
+  const RATE_SORT_COLUMNS = new Set(['rate'])
+  const safeSortBy = KOL_SORT_COLUMNS.has(sortBy)
+    ? sortBy
+    : RATE_SORT_COLUMNS.has(sortBy)
+    ? sortBy
+    : 'updatedAt'
 
+  // Fetch ALL matching KOLs (we expand rates[] into rows in JS, then paginate the expanded set)
+  // For datasets <100K rows this is fine; switch to SQL function if it grows.
   let query = supabase
     .from('KOLContacts')
-    .select('*', { count: 'exact' })
+    .select('*')
 
   if (platform && platform !== 'all') {
     query = query.eq('platform', platform)
@@ -466,14 +481,12 @@ export async function getMergedKOLs(options?: {
     )
   }
 
-  query = query.order(safeSortBy, { ascending: sortOrder === 'asc' })
-  query = query.range((page - 1) * pageSize, page * pageSize - 1)
-
-  const { data, count, error } = await query
+  const { data, error } = await query
   if (error) throw error
 
   const rows = (data ?? []) as KOLContactRow[]
 
+  // Batch-fetch fresh ProfileLookup rows (same TTL filter as before)
   let profileLookupMap = new Map<string, any>()
   if (rows.length > 0) {
     const cutoff = new Date()
@@ -498,6 +511,7 @@ export async function getMergedKOLs(options?: {
     }
   }
 
+  // Merge KOL + ProfileLookup
   const merged = rows.map((row) => {
     const pl = profileLookupMap.get(`${row.platform}:${row.username}`)
     const hasScraped = !!pl
@@ -532,15 +546,90 @@ export async function getMergedKOLs(options?: {
     }
   })
 
-  let filtered = merged
-  if (scrapedOnly) filtered = filtered.filter((m) => m.hasScrapedData)
-  if (unscrapedOnly) filtered = filtered.filter((m) => !m.hasScrapedData)
+  // Filter by data source at KOL level
+  let kFiltered = merged
+  if (scrapedOnly) kFiltered = kFiltered.filter((m) => m.hasScrapedData)
+  if (unscrapedOnly) kFiltered = kFiltered.filter((m) => !m.hasScrapedData)
+
+  // Expand rates[] into separate rows
+  // - KOLs with no rates become a single row with null rate fields
+  // - KOLs with N rates become N rows, each with one rate
+  const expanded: any[] = []
+  for (const m of kFiltered) {
+    if (!m.rates || m.rates.length === 0) {
+      expanded.push({ ...m, rateScope: null, rateQty: null, rateRate: null })
+    } else {
+      for (const r of m.rates) {
+        expanded.push({
+          ...m,
+          rateScope: r.scope || null,
+          rateQty: r.qty || null,
+          rateRate: r.rate || null,
+        })
+      }
+    }
+  }
+
+  // Apply rate-level filters
+  let filtered = expanded
+  if (minRate != null) {
+    filtered = filtered.filter((r) => (r.rateRate || 0) >= minRate)
+  }
+  if (maxRate != null) {
+    filtered = filtered.filter((r) => (r.rateRate || 0) <= maxRate)
+  }
+  if (scope) {
+    const scopeLower = scope.toLowerCase()
+    filtered = filtered.filter(
+      (r) => r.rateScope && r.rateScope.toLowerCase().includes(scopeLower)
+    )
+  }
+
+  // Sort
+  const dir = sortOrder === 'asc' ? 1 : -1
+  if (safeSortBy === 'rate') {
+    // Rate-level sort: order by rateRate directly (stable across KOLs)
+    filtered.sort((a, b) => {
+      const av = a.rateRate || 0
+      const bv = b.rateRate || 0
+      if (av === bv) return 0
+      return av < bv ? -1 * dir : 1 * dir
+    })
+  } else {
+    // KOL-level sort: group by KOL identity, sort KOLs, keep rates within a KOL together
+    // Sub-sort within KOL: highest rate first (stable visual)
+    const byKol = new Map<string, any[]>()
+    for (const r of filtered) {
+      const list = byKol.get(r.id) || []
+      list.push(r)
+      byKol.set(r.id, list)
+    }
+    for (const list of byKol.values()) {
+      list.sort((a, b) => (b.rateRate || 0) - (a.rateRate || 0))
+    }
+    const kols = Array.from(byKol.values()).map((rows) => rows[0])
+    kols.sort((a, b) => {
+      const av = (a as any)[safeSortBy]
+      const bv = (b as any)[safeSortBy]
+      if (av == null && bv == null) return 0
+      if (av == null) return 1
+      if (bv == null) return -1
+      if (av === bv) return 0
+      if (typeof av === 'number' && typeof bv === 'number') return av < bv ? -1 * dir : 1 * dir
+      return String(av).localeCompare(String(bv)) * dir
+    })
+    filtered = kols.flatMap((k) => byKol.get((k as any).id) || [])
+  }
+
+  const total = filtered.length
+  const start = (page - 1) * pageSize
+  const paged = filtered.slice(start, start + pageSize)
 
   return {
-    profiles: filtered,
-    total: count ?? 0,
+    profiles: paged,
+    total,
     page,
     pageSize,
-    totalPages: Math.ceil((count ?? 0) / pageSize),
+    totalPages: Math.max(1, Math.ceil(total / pageSize)),
   }
 }
