@@ -59,11 +59,16 @@ export async function GET(request: NextRequest) {
     })
   } catch (error) {
     console.error('Discovery API error:', error)
+    const safeMessage = error instanceof Error
+      ? error.message
+      : typeof error === 'string'
+      ? error
+      : JSON.stringify(error)
     return NextResponse.json(
       {
         success: false,
         error: 'Failed to fetch profiles',
-        message: error instanceof Error ? error.message : String(error),
+        message: safeMessage,
         debug: {
           name: error instanceof Error ? error.name : typeof error,
           code: (error as any)?.code,

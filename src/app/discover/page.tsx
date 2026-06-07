@@ -117,12 +117,18 @@ export default function DiscoverPage() {
         setError(null)
       } else {
         console.error('Discover API error:', data)
-        setError(data.message || data.error || 'Failed to load profiles')
+        const msg = typeof data.message === 'string'
+          ? data.message
+          : typeof data.error === 'string'
+          ? data.error
+          : JSON.stringify(data)
+        setError(msg || 'Failed to load profiles')
         setProfiles([])
         setTotal(0)
       }
     } catch (err: any) {
-      setError(err.message || 'Network error')
+      const msg = err instanceof Error ? err.message : typeof err === 'string' ? err : JSON.stringify(err)
+      setError(msg || 'Network error')
     } finally {
       setLoading(false)
     }
