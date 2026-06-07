@@ -41,7 +41,20 @@ export async function scrapeTikTokViaScrapfly(
     const followers = followersMatch ? parseInt(followersMatch[1]) : 0
     const following = followingMatch ? parseInt(followingMatch[1]) : null
     const videoCount = videoMatch ? parseInt(videoMatch[1]) : 0
-    const profilePicture = avatarMatch ? avatarMatch[1].replace(/\\u0026/g, '&') : null
+    // avatarLarger URL has JSON unicode escapes (\\u002F for '/', \\u0026 for '&', etc.)
+    // Wrap in quotes and JSON.parse to decode all of them in one shot.
+    // Fallback to a manual regex decode if JSON.parse fails for any reason.
+    const profilePicture = avatarMatch
+      ? (() => {
+          try {
+            return JSON.parse('"' + avatarMatch[1] + '"')
+          } catch {
+            return avatarMatch[1].replace(/\\u([0-9a-fA-F]{4})/g, (_m, hex) =>
+              String.fromCharCode(parseInt(hex, 16))
+            )
+          }
+        })()
+      : null
     const bio = bioMatch ? bioMatch[1].replace(/\\n/g, '\n').replace(/\\"/g, '"') : null
 
     const allVideos: Array<{
