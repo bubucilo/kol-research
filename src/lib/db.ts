@@ -457,8 +457,13 @@ export async function getMergedKOLs(options?: {
   // Fetch ALL matching KOLs in chunks of 1000 (PostgREST max-rows cap).
   // We expand rates[] into rows in JS, then paginate the expanded set,
   // so we need the full dataset to do proper per-row filtering/sorting.
+  //
+  // IMPORTANT: we must .order() here for STABLE chunking. Without an
+  // explicit order, PostgREST can return rows in any order, and the
+  // OFFSET-based chunking can skip or duplicate rows across pages.
+  // User-facing sort is still applied in JS after expansion.
   const buildBaseQuery = () => {
-    let q = supabase.from('KOLContacts').select('*')
+    let q = supabase.from('KOLContacts').select('*').order('id', { ascending: true })
     if (platform && platform !== 'all') q = q.eq('platform', platform)
     if (category) q = q.ilike('categories', `%${category}%`)
     if (domisili) q = q.ilike('domisili', `%${domisili}%`)
