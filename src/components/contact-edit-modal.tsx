@@ -1,18 +1,22 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { X, Save, Loader2, Phone, DollarSign, MapPin, Tag, Briefcase, StickyNote, User } from 'lucide-react'
+import { X, Save, Loader2, Phone, MapPin, Tag, StickyNote, User, Plus, Trash2, DollarSign, ListChecks } from 'lucide-react'
+
+export type EditableRate = {
+  scope: string
+  qty: number
+  rate: number
+}
 
 export type EditableContact = {
   id: string
   name: string | null
   contact: string | null
-  rateIdr: number | null
+  rates: EditableRate[] | null
   categories: string | null
   domisili: string | null
   tier: string | null
-  scopeOfWork: string | null
-  scopeQty: number | null
   remarks: string | null
   status: string | null
 }
@@ -20,7 +24,7 @@ export type EditableContact = {
 type Props = {
   contact: EditableContact | null
   onClose: () => void
-  onSaved: (updated: EditableContact) => void
+  onSaved: (updated: any) => void
 }
 
 const STATUS_OPTIONS = [
@@ -40,7 +44,12 @@ export function ContactEditModal({ contact, onClose, onSaved }: Props) {
 
   useEffect(() => {
     if (contact) {
-      setForm({ ...contact })
+      setForm({
+        ...contact,
+        rates: contact.rates && contact.rates.length > 0
+          ? contact.rates.map((r) => ({ ...r }))
+          : [{ scope: '', qty: 1, rate: 0 }],
+      })
       setError(null)
     }
   }, [contact])
@@ -51,22 +60,62 @@ export function ContactEditModal({ contact, onClose, onSaved }: Props) {
     setForm((f) => (f ? { ...f, [field]: value } : f))
   }
 
+  const updateRate = (index: number, field: keyof EditableRate, value: any) => {
+    setForm((f) => {
+      if (!f) return f
+      const rates = [...(f.rates || [])]
+      rates[index] = { ...rates[index], [field]: value }
+      return { ...f, rates }
+    })
+  }
+
+  const addRate = () => {
+    setForm((f) => {
+      if (!f) return f
+      return { ...f, rates: [...(f.rates || []), { scope: '', qty: 1, rate: 0 }] }
+    })
+  }
+
+  const removeRate = (index: number) => {
+    setForm((f) => {
+      if (!f) return f
+      const rates = [...(f.rates || [])]
+      rates.splice(index, 1)
+      return { ...f, rates: rates.length > 0 ? rates : [{ scope: '', qty: 1, rate: 0 }] }
+    })
+  }
+
   const handleSave = async () => {
     if (!form) return
     setSaving(true)
     setError(null)
+
+    // Strip empty rate rows before sending
+    const cleanedRates = (form.rates || []).filter(
+      (r) => r.scope.trim() !== '' || r.rate > 0
+    )
+
     try {
       const res = await fetch(`/api/contacts/${form.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
+        body: JSON.stringify({
+          name: form.name,
+          contact: form.contact,
+          categories: form.categories,
+          domisili: form.domisili,
+          tier: form.tier,
+          remarks: form.remarks,
+          status: form.status,
+          rates: cleanedRates,
+        }),
       })
       const data = await res.json()
       if (!data.success) {
         setError(data.error?.message || 'Save failed')
         return
       }
-      onSaved(data.data as EditableContact)
+      onSaved(data.data)
       onClose()
     } catch (err: any) {
       setError(err.message || 'Network error')
@@ -130,18 +179,6 @@ export function ContactEditModal({ contact, onClose, onSaved }: Props) {
               />
             </Field>
 
-            <Field icon={DollarSign} label="Rate (IDR)">
-              <input
-                type="number"
-                value={form.rateIdr ?? ''}
-                onChange={(e) =>
-                  update('rateIdr', e.target.value === '' ? null : Number(e.target.value))
-                }
-                placeholder="500000"
-                className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white placeholder:text-white/30 focus:outline-none focus:border-[#3B82F6]"
-              />
-            </Field>
-
             <Field icon={Tag} label="Categories / Niche">
               <input
                 type="text"
@@ -191,28 +228,62 @@ export function ContactEditModal({ contact, onClose, onSaved }: Props) {
                 ))}
               </select>
             </Field>
+          </div>
 
-            <Field icon={Briefcase} label="Scope of Work">
-              <input
-                type="text"
-                value={form.scopeOfWork || ''}
-                onChange={(e) => update('scopeOfWork', e.target.value || null)}
-                placeholder="IG Reels, TikTok, etc."
-                className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white placeholder:text-white/30 focus:outline-none focus:border-[#3B82F6]"
-              />
-            </Field>
-
-            <Field label="Scope Qty">
-              <input
-                type="number"
-                value={form.scopeQty ?? ''}
-                onChange={(e) =>
-                  update('scopeQty', e.target.value === '' ? null : Number(e.target.value))
-                }
-                placeholder="1"
-                className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white placeholder:text-white/30 focus:outline-none focus:border-[#3B82F6]"
-              />
-            </Field>
+          <div>
+            <label className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-white/60 mb-2">
+              <ListChecks className="w-3.5 h-3.5" />
+              Rates by Scope
+            </label>
+            <div className="space-y-2">
+              {(form.rates || []).map((r, i) => (
+                <div
+                  key={i}
+                  className="grid grid-cols-12 gap-2 items-center p-2 rounded-lg"
+                  style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}
+                >
+                  <input
+                    type="text"
+                    value={r.scope}
+                    onChange={(e) => updateRate(i, 'scope', e.target.value)}
+                    placeholder="IG Reels, TikTok Video, etc."
+                    className="col-span-6 px-2 py-1.5 rounded bg-white/5 border border-white/10 text-white text-sm placeholder:text-white/30 focus:outline-none focus:border-[#3B82F6]"
+                  />
+                  <input
+                    type="number"
+                    value={r.qty || ''}
+                    onChange={(e) => updateRate(i, 'qty', Number(e.target.value) || 0)}
+                    placeholder="Qty"
+                    min="1"
+                    className="col-span-2 px-2 py-1.5 rounded bg-white/5 border border-white/10 text-white text-sm placeholder:text-white/30 focus:outline-none focus:border-[#3B82F6]"
+                  />
+                  <div className="col-span-3 relative">
+                    <span className="absolute left-2 top-1/2 -translate-y-1/2 text-white/40 text-xs">Rp</span>
+                    <input
+                      type="number"
+                      value={r.rate || ''}
+                      onChange={(e) => updateRate(i, 'rate', Number(e.target.value) || 0)}
+                      placeholder="500000"
+                      className="w-full pl-7 pr-2 py-1.5 rounded bg-white/5 border border-white/10 text-white text-sm placeholder:text-white/30 focus:outline-none focus:border-[#3B82F6]"
+                    />
+                  </div>
+                  <button
+                    onClick={() => removeRate(i)}
+                    className="col-span-1 p-1.5 rounded text-white/40 hover:text-[#FCA5A5] hover:bg-[rgba(239,68,68,0.1)]"
+                    title="Remove this rate"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+            <button
+              onClick={addRate}
+              className="mt-2 w-full py-2 rounded-lg text-sm font-medium text-white/70 hover:text-white border border-dashed border-white/15 hover:border-white/30 flex items-center justify-center gap-1.5"
+            >
+              <Plus className="w-4 h-4" />
+              Add another rate
+            </button>
           </div>
 
           <Field icon={StickyNote} label="Remarks">

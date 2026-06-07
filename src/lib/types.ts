@@ -40,6 +40,12 @@ export class ProfileError extends Error {
   }
 }
 
+export interface KolRate {
+  scope: string
+  qty: number
+  rate: number
+}
+
 export interface KOLContact {
   id: string
   rowNo: number | null
@@ -53,9 +59,7 @@ export interface KOLContact {
   erPercent: number | null
   avgViews: number | null
   gmv: number | null
-  scopeQty: number | null
-  scopeOfWork: string | null
-  rateIdr: number | null
+  rates: KolRate[] | null
   remarks: string | null
   domisili: string | null
   contact: string | null
@@ -72,12 +76,12 @@ export interface MergedKOL {
   profileUrl: string
   name: string | null
   contact: string | null
-  rateIdr: number | null
+  rates: KolRate[] | null
+  primaryRate: number | null
+  primaryScope: string | null
   categories: string | null
   domisili: string | null
   tier: string | null
-  scopeOfWork: string | null
-  scopeQty: number | null
   remarks: string | null
   status: string | null
 

@@ -51,37 +51,53 @@ export async function GET(request: NextRequest) {
       'Avg Views',
       'Avg Likes',
       'Engagement Rate %',
-      'Rate (IDR)',
+      'Primary Rate (IDR)',
+      'Primary Scope',
+      'All Rates (IDR)',
+      'All Scopes',
       'Contact',
       'Categories',
       'Domisili',
-      'Scope',
       'Remarks',
+      'Status',
       'Profile URL',
       'Last Scraped',
       'Data Source',
     ]
 
-    const rows = result.profiles.map((p: any) => [
-      p.platform,
-      p.username,
-      p.name || '',
-      p.followers || 0,
-      p.tier || '',
-      (p.engagementRate || 0).toFixed(2),
-      Math.round(p.avgViews || 0),
-      Math.round(p.avgLikes || 0),
-      (p.engagementRate || 0).toFixed(2),
-      p.rateIdr || '',
-      p.contact || '',
-      p.categories || '',
-      p.domisili || '',
-      p.scopeOfWork || '',
-      p.remarks || '',
-      p.profileUrl,
-      p.lastSearchedAt ? new Date(p.lastSearchedAt).toISOString().split('T')[0] : '',
-      p.hasScrapedData ? 'live' : 'csv',
-    ])
+    const rows = result.profiles.map((p: any) => {
+      const allRates = (p.rates || [])
+        .map((r: any) => r.rate)
+        .filter((n: number) => n > 0)
+        .join(' | ')
+      const allScopes = (p.rates || [])
+        .map((r: any) => r.scope)
+        .filter(Boolean)
+        .join(' | ')
+      return [
+        p.platform,
+        p.username,
+        p.name || '',
+        p.followers || 0,
+        p.tier || '',
+        (p.engagementRate || 0).toFixed(2),
+        Math.round(p.avgViews || 0),
+        Math.round(p.avgLikes || 0),
+        (p.engagementRate || 0).toFixed(2),
+        p.primaryRate || '',
+        p.primaryScope || '',
+        allRates,
+        allScopes,
+        p.contact || '',
+        p.categories || '',
+        p.domisili || '',
+        p.remarks || '',
+        p.status || '',
+        p.profileUrl,
+        p.lastSearchedAt ? new Date(p.lastSearchedAt).toISOString().split('T')[0] : '',
+        p.hasScrapedData ? 'live' : 'csv',
+      ]
+    })
 
     const csv = [headers.join(','), ...rows.map((r: any[]) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(','))].join('\n')
 

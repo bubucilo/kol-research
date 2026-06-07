@@ -22,21 +22,21 @@ import {
   DollarSign,
   MapPin,
   Tag,
-  Briefcase,
   StickyNote,
 } from 'lucide-react'
 import Link from 'next/link'
+
+type KolRate = { scope: string; qty: number; rate: number }
 
 type CRMData = {
   id: string
   name: string | null
   contact: string | null
-  rateIdr: number | null
+  rates: KolRate[] | null
+  primaryRate: number | null
   categories: string | null
   domisili: string | null
   tier: string | null
-  scopeOfWork: string | null
-  scopeQty: number | null
   remarks: string | null
   status: string | null
 }
@@ -284,12 +284,29 @@ function ResultsContent() {
                   </a>
                 </div>
               )}
-              {crm.rateIdr != null && crm.rateIdr > 0 && (
-                <div className="flex items-start gap-2">
+              {crm.rates && crm.rates.length > 0 && (
+                <div className="flex items-start gap-2 md:col-span-2">
                   <DollarSign className="w-3.5 h-3.5 mt-0.5 text-[#FBBF24] flex-shrink-0" />
-                  <span className="text-white font-medium">
-                    Rp {crm.rateIdr.toLocaleString('id-ID')}
-                  </span>
+                  <div className="flex-1 space-y-1">
+                    <div className="text-[10px] font-semibold uppercase tracking-wider text-[#64748B]">
+                      Rates ({crm.rates.length})
+                    </div>
+                    {crm.rates.map((r, i) => (
+                      <div key={i} className="flex items-center gap-2 text-sm">
+                        <span className="text-white/60 text-xs w-32 truncate">
+                          {r.scope || '(no scope)'}
+                          {r.qty > 1 && (
+                            <span className="text-white/40"> · {r.qty}×</span>
+                          )}
+                        </span>
+                        <span className="text-white font-medium">
+                          {r.rate > 0
+                            ? `Rp ${r.rate.toLocaleString('id-ID')}`
+                            : <span className="text-white/30">—</span>}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
               {crm.categories && (
@@ -308,15 +325,6 @@ function ResultsContent() {
                 <div className="flex items-start gap-2">
                   <span className="text-[#64748B] w-24 flex-shrink-0">Tier</span>
                   <span className="text-white font-medium">{crm.tier}</span>
-                </div>
-              )}
-              {crm.scopeOfWork && (
-                <div className="flex items-start gap-2">
-                  <Briefcase className="w-3.5 h-3.5 mt-0.5 text-[#A78BFA] flex-shrink-0" />
-                  <span className="text-white">
-                    {crm.scopeQty && crm.scopeQty > 1 ? `${crm.scopeQty}× ` : ''}
-                    {crm.scopeOfWork}
-                  </span>
                 </div>
               )}
               {crm.status && (

@@ -6,15 +6,38 @@ export const runtime = 'nodejs'
 const EDITABLE_FIELDS = [
   'name',
   'contact',
-  'rateIdr',
   'categories',
   'domisili',
   'tier',
-  'scopeOfWork',
-  'scopeQty',
   'remarks',
   'status',
 ] as const
+
+type Rate = { scope: string; qty: number; rate: number }
+
+function pickPrimaryRate(rates: Rate[] | null | undefined): number | null {
+  if (!rates || rates.length === 0) return null
+  const first = rates.find((r) => r.rate > 0) || rates[0]
+  return first.rate || null
+}
+
+function validateRates(rates: any): Rate[] | null {
+  if (!Array.isArray(rates)) return null
+  const cleaned: Rate[] = []
+  for (const r of rates) {
+    if (!r || typeof r !== 'object') continue
+    const scope = typeof r.scope === 'string' ? r.scope.trim() : ''
+    const qty = Number(r.qty)
+    const rate = Number(r.rate)
+    if (!scope && !(rate > 0)) continue // skip empty rows
+    cleaned.push({
+      scope,
+      qty: Number.isFinite(qty) && qty > 0 ? Math.floor(qty) : 1,
+      rate: Number.isFinite(rate) && rate > 0 ? Math.floor(rate) : 0,
+    })
+  }
+  return cleaned
+}
 
 export async function PATCH(
   request: NextRequest,
@@ -30,12 +53,18 @@ export async function PATCH(
         const val = body[field]
         if (val === '' || val === null) {
           updates[field] = null
-        } else if (field === 'rateIdr' || field === 'scopeQty') {
-          const num = Number(val)
-          if (Number.isFinite(num)) updates[field] = num
         } else {
           updates[field] = String(val)
         }
+      }
+    }
+
+    // Special handling for rates[] array
+    if ('rates' in body) {
+      const cleaned = validateRates(body.rates)
+      if (cleaned !== null) {
+        updates.rates = cleaned
+        updates.primaryRate = pickPrimaryRate(cleaned)
       }
     }
 
@@ -50,7 +79,7 @@ export async function PATCH(
       .from('KOLContacts')
       .update(updates)
       .eq('id', id)
-      .select('id, name, contact, rateIdr, categories, domisili, tier, scopeOfWork, scopeQty, remarks, status')
+      .select('id, name, contact, rates, primaryRate, categories, domisili, tier, remarks, status')
       .single()
 
     if (error) throw error

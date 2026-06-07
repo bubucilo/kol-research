@@ -388,15 +388,20 @@ type KOLContactRow = {
   erPercent: number | null
   avgViews: number | null
   gmv: number | null
-  scopeQty: number | null
-  scopeOfWork: string | null
-  rateIdr: number | null
+  rates: Array<{ scope: string; qty: number; rate: number }> | null
+  primaryRate: number | null
   remarks: string | null
   domisili: string | null
   contact: string | null
   status: string | null
   importedAt: string
   updatedAt: string
+}
+
+function pickPrimaryRate(rates: KOLContactRow['rates']): { rate: number | null; scope: string | null } {
+  if (!rates || rates.length === 0) return { rate: null, scope: null }
+  const first = rates.find((r) => r.rate > 0) || rates[0]
+  return { rate: first.rate || null, scope: first.scope || null }
 }
 
 export async function getMergedKOLs(options?: {
@@ -431,7 +436,7 @@ export async function getMergedKOLs(options?: {
   const supabase = getClient()
 
   const KOL_SORT_COLUMNS = new Set([
-    'updatedAt', 'importedAt', 'followers', 'rateIdr',
+    'updatedAt', 'importedAt', 'followers', 'primaryRate',
     'name', 'username', 'categories', 'domisili', 'tier', 'contact', 'erPercent', 'avgViews',
   ])
   const safeSortBy = KOL_SORT_COLUMNS.has(sortBy) ? sortBy : 'updatedAt'
@@ -453,7 +458,7 @@ export async function getMergedKOLs(options?: {
     query = query.not('contact', 'is', null).neq('contact', '')
   }
   if (hasRate) {
-    query = query.not('rateIdr', 'is', null).gt('rateIdr', 0)
+    query = query.not('primaryRate', 'is', null).gt('primaryRate', 0)
   }
   if (search) {
     query = query.or(
@@ -496,6 +501,7 @@ export async function getMergedKOLs(options?: {
   const merged = rows.map((row) => {
     const pl = profileLookupMap.get(`${row.platform}:${row.username}`)
     const hasScraped = !!pl
+    const primary = pickPrimaryRate(row.rates)
 
     return {
       id: row.id,
@@ -504,12 +510,12 @@ export async function getMergedKOLs(options?: {
       profileUrl: row.profileUrl,
       name: row.name,
       contact: row.contact,
-      rateIdr: row.rateIdr,
+      rates: row.rates,
+      primaryRate: primary.rate,
+      primaryScope: primary.scope,
       categories: row.categories,
       domisili: row.domisili,
       tier: row.tier,
-      scopeOfWork: row.scopeOfWork,
-      scopeQty: row.scopeQty,
       remarks: row.remarks,
       status: row.status,
       followers: hasScraped && pl.followers != null ? pl.followers : row.followers,

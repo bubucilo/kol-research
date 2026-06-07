@@ -29,6 +29,12 @@ import {
   type EditableContact,
 } from '@/components/contact-edit-modal'
 
+interface KolRate {
+  scope: string
+  qty: number
+  rate: number
+}
+
 interface MergedProfile {
   id: string
   platform: 'instagram' | 'tiktok'
@@ -38,12 +44,12 @@ interface MergedProfile {
   bio: string | null
   name: string | null
   contact: string | null
-  rateIdr: number | null
+  rates: KolRate[] | null
+  primaryRate: number | null
+  primaryScope: string | null
   categories: string | null
   domisili: string | null
   tier: string | null
-  scopeOfWork: string | null
-  scopeQty: number | null
   remarks: string | null
   status: string | null
   followers: number | null
@@ -149,11 +155,14 @@ export default function DiscoverPage() {
   }
 
   const handleCopy = (profile: MergedProfile) => {
+    const rateText = profile.rates && profile.rates.length > 0
+      ? profile.rates.map((r) => r.rate ? `Rp ${r.rate.toLocaleString('id-ID')}` : '').filter(Boolean).join(' / ')
+      : ''
     const data = [
       profile.platform,
       profile.username,
       profile.contact || '',
-      profile.rateIdr ? `Rp ${profile.rateIdr.toLocaleString('id-ID')}` : '',
+      rateText,
       profile.followers || 0,
       profile.avgViews ? Math.round(profile.avgViews) : 0,
       profile.engagementRate ? profile.engagementRate.toFixed(2) + '%' : '-',
@@ -166,18 +175,21 @@ export default function DiscoverPage() {
   }
 
   const handleCopyAll = () => {
-    const header = 'Platform\tUsername\tContact\tRate (IDR)\tFollowers\tAvg Views\tEngagement'
-    const rows = profiles.map((p) =>
-      [
+    const header = 'Platform\tUsername\tContact\tScopes\tPrimary Rate (IDR)\tFollowers\tAvg Views\tEngagement'
+    const rows = profiles.map((p) => {
+      const scopes = (p.rates || []).map((r) => r.scope).filter(Boolean).join(' + ')
+      const rate = p.primaryRate ?? ''
+      return [
         p.platform,
         p.username,
         p.contact || '',
-        p.rateIdr ? p.rateIdr : '',
+        scopes,
+        rate,
         p.followers || 0,
         p.avgViews ? Math.round(p.avgViews) : 0,
         p.engagementRate ? p.engagementRate.toFixed(2) + '%' : '-',
       ].join('\t')
-    )
+    })
     const data = [header, ...rows].join('\n')
 
     navigator.clipboard.writeText(data).then(() => {
@@ -372,7 +384,7 @@ export default function DiscoverPage() {
                     Niche / Location
                   </th>
                   {[
-                    { key: 'rateIdr', label: 'Rate (IDR)' },
+                    { key: 'primaryRate', label: 'Rate (IDR)' },
                     { key: 'followers', label: 'Followers' },
                     { key: 'avgViews', label: 'Avg Views' },
                     { key: 'erPercent', label: 'ER %' },
@@ -510,11 +522,22 @@ export default function DiscoverPage() {
                       </td>
 
                       <td className="p-4 text-right">
-                        {profile.rateIdr ? (
-                          <span className="inline-flex items-center gap-1 text-sm font-semibold text-white">
-                            <DollarSign className="w-3.5 h-3.5 text-[#FBBF24]" />
-                            {formatRate(profile.rateIdr)}
-                          </span>
+                        {profile.primaryRate ? (
+                          <div className="inline-flex flex-col items-end gap-0.5">
+                            <span className="inline-flex items-center gap-1 text-sm font-semibold text-white">
+                              <DollarSign className="w-3.5 h-3.5 text-[#FBBF24]" />
+                              {formatRate(profile.primaryRate)}
+                            </span>
+                            {profile.rates && profile.rates.length > 1 && (
+                              <span
+                                className="text-[10px] font-medium px-1.5 py-0.5 rounded"
+                                style={{ background: 'rgba(251, 191, 36, 0.15)', color: '#FBBF24' }}
+                                title={profile.rates.map((r) => `${r.scope || '(no scope)'}: Rp ${(r.rate || 0).toLocaleString('id-ID')}`).join('\n')}
+                              >
+                                +{profile.rates.length - 1} more
+                              </span>
+                            )}
+                          </div>
                         ) : (
                           <span className="text-xs text-white/30">—</span>
                         )}
@@ -579,12 +602,10 @@ export default function DiscoverPage() {
                                 id: profile.id,
                                 name: profile.name,
                                 contact: profile.contact,
-                                rateIdr: profile.rateIdr,
+                                rates: profile.rates,
                                 categories: profile.categories,
                                 domisili: profile.domisili,
                                 tier: profile.tier,
-                                scopeOfWork: profile.scopeOfWork,
-                                scopeQty: profile.scopeQty,
                                 remarks: profile.remarks,
                                 status: profile.status,
                               })
@@ -698,12 +719,14 @@ export default function DiscoverPage() {
                     ...p,
                     name: updated.name,
                     contact: updated.contact,
-                    rateIdr: updated.rateIdr,
+                    rates: updated.rates,
+                    primaryRate: updated.primaryRate,
+                    primaryScope: (updated.rates && updated.rates.length > 0)
+                      ? (updated.rates.find((r: { rate: number; scope: string }) => r.rate > 0)?.scope || updated.rates[0].scope || null)
+                      : null,
                     categories: updated.categories,
                     domisili: updated.domisili,
                     tier: updated.tier,
-                    scopeOfWork: updated.scopeOfWork,
-                    scopeQty: updated.scopeQty,
                     remarks: updated.remarks,
                     status: updated.status,
                   }

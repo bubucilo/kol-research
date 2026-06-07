@@ -13,6 +13,8 @@ type ImportResult = {
   errors: { row: number; reason: string; data?: any }[]
 }
 
+type Rate = { scope: string; qty: number; rate: number }
+
 const COLUMN_ALIASES: Record<string, string[]> = {
   rowNo: ['no', 'no.', '#', 'row', 'number'],
   name: ['name', 'nama', 'kol name', 'creator name'],
@@ -39,6 +41,34 @@ function findColumnIndex(headers: string[], target: string): number {
     if (aliases.includes(h)) return i
   }
   return -1
+}
+
+function pickPrimaryRate(rates: Rate[] | null | undefined): number | null {
+  if (!rates || rates.length === 0) return null
+  const first = rates.find((r) => r.rate > 0) || rates[0]
+  return first.rate || null
+}
+
+/**
+ * Merge CSV rates into existing rates array.
+ * Default mode: append new scopes (don't update existing scopes' rates).
+ * Overwrite mode handled separately by replacing the array.
+ */
+function mergeRates(existing: Rate[] | null | undefined, incoming: Rate[]): Rate[] {
+  const base = existing && existing.length > 0 ? [...existing] : []
+  for (const inc of incoming) {
+    if (!inc.scope && !(inc.rate > 0)) continue // skip empty rows
+    const idx = base.findIndex((r) => r.scope === inc.scope)
+    if (idx >= 0) {
+      // Default merge: keep existing rate unless CSV has one and existing is 0
+      if (!(base[idx].rate > 0) && inc.rate > 0) {
+        base[idx] = { ...base[idx], rate: inc.rate, qty: inc.qty || base[idx].qty }
+      }
+    } else {
+      base.push(inc)
+    }
+  }
+  return base
 }
 
 export async function POST(request: NextRequest) {
@@ -127,6 +157,12 @@ export async function POST(request: NextRequest) {
           continue
         }
 
+        // Build rates[] array from the single scope/qty/rate cells in this CSV row
+        const scope = get(row, 'scopeOfWork') || ''
+        const qty = parseFormattedNumber(get(row, 'scopeQty')) || 1
+        const rate = parseFormattedNumber(get(row, 'rateIdr')) || 0
+        const rates: Rate[] = scope || rate > 0 ? [{ scope, qty, rate }] : []
+
         const record: any = {
           platform,
           username,
@@ -139,12 +175,11 @@ export async function POST(request: NextRequest) {
           erPercent: parseFormattedNumber(get(row, 'erPercent')),
           avgViews: parseFormattedNumber(get(row, 'avgViews')),
           gmv: parseFormattedNumber(get(row, 'gmv')),
-          scopeQty: parseFormattedNumber(get(row, 'scopeQty')),
-          scopeOfWork: get(row, 'scopeOfWork') || null,
-          rateIdr: parseFormattedNumber(get(row, 'rateIdr')),
           remarks: get(row, 'remarks') || null,
           domisili: get(row, 'domisili') || null,
           contact: get(row, 'contact') || null,
+          rates,
+          primaryRate: pickPrimaryRate(rates),
           status: 'cold',
         }
 
@@ -159,7 +194,7 @@ export async function POST(request: NextRequest) {
           const { data: existing } = await supabase
             .from('KOLContacts')
             .select(
-              'id, platform, username, name, contact, rateIdr, categories, domisili, scopeOfWork, scopeQty, remarks, tier, gmv, followers, erPercent, avgViews, importedAt'
+              'id, platform, username, name, contact, categories, domisili, remarks, tier, gmv, followers, erPercent, avgViews, rates, importedAt'
             )
             .or(pairs)
 
@@ -185,7 +220,6 @@ export async function POST(request: NextRequest) {
             // Overwrite mode: replace all fields from CSV (except _rowNum marker)
             if (overwrite) {
               const { _rowNum, ...fields } = r
-              // Don't overwrite lastScrapedAt or anything that isn't in the CSV
               toUpdate.push({ id: ex.id, fields, rowNum })
               continue
             }
@@ -201,11 +235,8 @@ export async function POST(request: NextRequest) {
             }
             tryUpdate('name', r.name)
             tryUpdate('contact', r.contact)
-            tryUpdate('rateIdr', r.rateIdr)
             tryUpdate('categories', r.categories)
             tryUpdate('domisili', r.domisili)
-            tryUpdate('scopeOfWork', r.scopeOfWork)
-            tryUpdate('scopeQty', r.scopeQty)
             tryUpdate('remarks', r.remarks)
             tryUpdate('tier', r.tier)
             tryUpdate('gmv', r.gmv)
@@ -214,6 +245,14 @@ export async function POST(request: NextRequest) {
             tryUpdate('followers', r.followers)
             tryUpdate('erPercent', r.erPercent)
             tryUpdate('avgViews', r.avgViews)
+
+            // Rates merge: append new scopes, never overwrite existing scope rates
+            const mergedRates = mergeRates(ex.rates, r.rates)
+            const existingRateCount = (ex.rates || []).length
+            if (mergedRates.length > existingRateCount || !ex.rates) {
+              updates.rates = mergedRates
+              updates.primaryRate = pickPrimaryRate(mergedRates)
+            }
 
             if (Object.keys(updates).length > 0) {
               toUpdate.push({ id: ex.id, fields: updates, rowNum })

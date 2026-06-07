@@ -113,7 +113,7 @@ export async function POST(request: NextRequest) {
         const { data: crmRow } = await getClient()
           .from('KOLContacts')
           .select(
-            'id, name, contact, rateIdr, categories, domisili, tier, scopeOfWork, scopeQty, remarks, status'
+            'id, name, contact, rates, primaryRate, categories, domisili, tier, remarks, status'
           )
           .eq('platform', platform)
           .eq('username', username)
