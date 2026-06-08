@@ -11,12 +11,14 @@ export async function scrapeTikTokViaScrapfly(
 
   try {
     // Use SG proxy — 'us' fails to trigger post/item_list XHR for Indonesian accounts
+    // renderingWait bumped to 15s to give the post/item_list XHR more time to fire.
+    // autoScroll triggers a single full-page scroll; not enough for some accounts.
     const result = await scrapeWithScrapfly({
       url,
       asp: true,
       renderJs: true,
       country: 'sg',
-      renderingWait: 8000,
+      renderingWait: 15000,
       autoScroll: true,
     })
 
@@ -134,6 +136,10 @@ export async function scrapeTikTokViaScrapfly(
     // effectively failed even though Scrapfly returned 200. This often happens
     // with region-restricted accounts, age-gated profiles, or when TikTok's
     // page structure has changed. Throw so the Apify fallback gets a chance.
+    //
+    // Also catch the "partial success" case: metadata populated but XHR didn't
+    // capture any videos. If the account claims to have N videos but we got 0,
+    // the XHR fetch failed and the engagement metrics would all be 0/N/A.
     if (
       followers === 0 &&
       videoCount === 0 &&
@@ -142,6 +148,14 @@ export async function scrapeTikTokViaScrapfly(
     ) {
       throw new ProfileError(
         `Could not extract data for @${username}. The account may be region-restricted, age-gated, or the page structure has changed.`,
+        'SCRAPING_FAILED'
+      )
+    }
+
+    if (videoCount > 0 && recentContent.length === 0) {
+      console.warn(`[tiktok] @${username}: page reports ${videoCount} videos but XHR captured 0 — falling back to Apify`)
+      throw new ProfileError(
+        `Partial scrape for @${username}: profile metadata loaded (${followers} followers, ${videoCount} videos) but the video list could not be fetched.`,
         'SCRAPING_FAILED'
       )
     }
