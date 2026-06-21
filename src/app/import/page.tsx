@@ -62,33 +62,6 @@ export default function ImportPage() {
     }
   }
 
-      {file && !result && (
-        <div className="mt-4 flex gap-3">
-          <button
-            onClick={handleUpload}
-            disabled={uploading}
-            className="flex-1 px-6 py-3 rounded-xl font-semibold text-white transition-all disabled:opacity-50"
-            style={{
-              background: 'linear-gradient(135deg, #0066FF, #00AAFF)',
-              boxShadow: '0 4px 16px rgba(0, 102, 255, 0.3)',
-            }}
-          >
-            {uploading ? 'Importing...' : `Import ${file.name}`}
-          </button>
-          <button
-            onClick={() => {
-              setFile(null)
-              setResult(null)
-              setError(null)
-            }}
-            className="px-6 py-3 rounded-xl font-medium text-white/70 hover:text-white transition-colors"
-            style={{ background: 'rgba(255,255,255,0.05)' }}
-          >
-            Clear
-          </button>
-        </div>
-      )}
-
   const handleDownloadTemplate = () => {
     const template = `No\tName\tLink Profile\tChannel\tCategories\tFollowers\tTier\tER %\tAVG Views\tGMV\tScope Qty\tScope of Work\tRate\tRemarks\tDomisili\tContact
 1\tSample Name\thttps://www.instagram.com/sampleusername/\tInstagram\tLifestyle\t10,500\tNano\t5.2\t15,000\t\t1\tIG Reels\t500,000\t\tJakarta\t6281234567890`

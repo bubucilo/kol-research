@@ -442,9 +442,11 @@ export async function getMergedKOLs(options?: {
   const supabase = getClient()
 
   // KOL-level sort columns (sort applies at KOL identity level, then rates within a KOL stay together)
+  // NOTE: 'engagementRate' is the merged field name (scraped value preferred, CSV baseline as fallback).
+  // The raw KOLContacts column is 'erPercent' but we sort AFTER merge, so we use the merged name.
   const KOL_SORT_COLUMNS = new Set([
     'updatedAt', 'importedAt', 'followers',
-    'name', 'username', 'categories', 'domisili', 'tier', 'contact', 'erPercent', 'avgViews',
+    'name', 'username', 'categories', 'domisili', 'tier', 'contact', 'engagementRate', 'avgViews',
   ])
   // Rate-level sort columns (sort applies at the rate-row level)
   const RATE_SORT_COLUMNS = new Set(['rate'])

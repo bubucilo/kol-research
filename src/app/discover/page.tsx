@@ -162,6 +162,11 @@ export default function DiscoverPage() {
     if (filters.viewRanges.length) params.set('viewRanges', filters.viewRanges.join(','))
     if (filters.likeRanges.length) params.set('likeRanges', filters.likeRanges.join(','))
     if (filters.erRanges.length) params.set('erRanges', filters.erRanges.join(','))
+    if (filters.category) params.set('category', filters.category)
+    if (filters.domisili) params.set('domisili', filters.domisili)
+    if (filters.minRate) params.set('minRate', filters.minRate)
+    if (filters.maxRate) params.set('maxRate', filters.maxRate)
+    if (filters.scope) params.set('scope', filters.scope)
     if (dataFilter === 'scraped') params.set('scrapedOnly', 'true')
     if (dataFilter === 'unscraped') params.set('unscrapedOnly', 'true')
     params.set('sortBy', sortBy)
@@ -356,7 +361,7 @@ export default function DiscoverPage() {
           </div>
 
           <div className="mt-3 flex items-center gap-3 text-xs text-[#64748B] flex-wrap">
-            <span className="font-semibold text-[#94A3B8]">{total}</span> profiles total
+            <span className="font-semibold text-[#94A3B8]">{total}</span> rows
             <span>•</span>
             <span>
               Showing {(page - 1) * pageSize + 1}-{Math.min(page * pageSize, total)} of {total}
@@ -409,7 +414,7 @@ export default function DiscoverPage() {
                   {[
                     { key: 'followers', label: 'Followers' },
                     { key: 'avgViews', label: 'Avg Views' },
-                    { key: 'erPercent', label: 'ER %' },
+                    { key: 'engagementRate', label: 'ER %' },
                   ].map((col) => (
                     <th
                       key={col.key}
@@ -434,13 +439,13 @@ export default function DiscoverPage() {
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan={10} className="p-12 text-center text-[#64748B]">
+                    <td colSpan={11} className="p-12 text-center text-[#64748B]">
                       Loading…
                     </td>
                   </tr>
                 ) : profiles.length === 0 ? (
                   <tr>
-                    <td colSpan={10} className="p-12 text-center">
+                    <td colSpan={11} className="p-12 text-center">
                       <div className="text-[#94A3B8] mb-2">No KOLs yet</div>
                       <a
                         href="/import"
@@ -451,9 +456,9 @@ export default function DiscoverPage() {
                     </td>
                   </tr>
                 ) : (
-                  profiles.map((profile) => (
+                  profiles.map((profile, idx) => (
                     <tr
-                      key={profile.id}
+                      key={`${profile.id}-${profile.rateScope || 'no-scope'}-${idx}`}
                       className="transition-colors hover:bg-[rgba(59,130,246,0.04)]"
                       style={{ borderTop: '1px solid rgba(255,255,255,0.04)' }}
                     >
